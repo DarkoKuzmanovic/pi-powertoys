@@ -98,22 +98,28 @@ export default function contextModeEnforcer(pi: any) {
 
       // Above threshold — truncate with preview
       const command = String(event?.input?.command ?? "").trim();
-      const head = lines.slice(0, PREVIEW_HEAD_LINES).join("\n");
-      const tail = lines.slice(-PREVIEW_TAIL_LINES).join("\n");
-      const omitted = lines.length - PREVIEW_HEAD_LINES - PREVIEW_TAIL_LINES;
+      let head: string;
+      let tail: string;
+      let omitted: number;
 
-      const truncated = [
-        head,
-        "",
-        `... (${omitted} lines, ${charCount.toLocaleString()} chars omitted) ...`,
-        "",
-        tail,
-        "",
-        "─".repeat(60),
-        `Output truncated to save context. For full output, use:`,
-        `  mcp({ tool: "context_mode_ctx_execute",`,
-        `    args: '${JSON.stringify({ language: "shell", code: command })}' })`,
-      ].join("\n");
+      if (lines.length > TRUNCATE_AFTER_LINES) {
+        // Line-based truncation: many lines
+        head = lines.slice(0, PREVIEW_HEAD_LINES).join("\n");
+        tail = lines.slice(-PREVIEW_TAIL_LINES).join("\n");
+        omitted = lines.length - PREVIEW_HEAD_LINES - PREVIEW_TAIL_LINES;
+      } else {
+        // Character-based truncation: few lines but large content (e.g. minified JSON)
+        const HEAD_CHARS = 800;
+        const TAIL_CHARS = 400;
+        head = text.slice(0, HEAD_CHARS);
+        tail = text.slice(-TAIL_CHARS);
+        omitted = charCount - HEAD_CHARS - TAIL_CHARS;
+      }
+
+      const truncated =
+        omitted > 0
+          ? `${head}\n\n... ${omitted} chars omitted ...\n\n${tail}`
+          : text;
 
       return {
         content: [{ type: "text", text: truncated }],

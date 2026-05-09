@@ -85,10 +85,13 @@ async function runSpeedTest(
 	const baseUrl = (model.baseUrl as string).replace(/\/$/, "");
 
 	try {
+		if (api === "openai-responses") {
+			return await runOpenAIResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);
+		}
 		if (api === "anthropic-messages") {
 			return await runAnthropicTest(baseUrl, model.id, apiKey, extraHeaders, result);
 		}
-		// openai-completions, openai-responses, and any OpenAI-compatible API
+		// openai-completions and any OpenAI-compatible API
 		return await runOpenAITest(baseUrl, model.id, apiKey, extraHeaders, result);
 	} catch (e: any) {
 		result.error = e?.message ?? String(e);
@@ -125,6 +128,44 @@ async function runOpenAITest(
 		const content = chunk.choices?.[0]?.delta?.content;
 		const tokens = chunk.usage?.completion_tokens;
 		return { content: content || undefined, outputTokens: tokens || undefined };
+	});
+}
+
+// --- OpenAI Responses API ---
+async function runOpenAIResponsesTest(
+	baseUrl: string,
+	modelId: string,
+	apiKey: string | undefined,
+	extraHeaders: Record<string, string> | undefined,
+	result: SpeedTestResult,
+): Promise<SpeedTestResult> {
+	const url = `${baseUrl}/responses`;
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		...extraHeaders,
+	};
+	if (apiKey) {
+		headers["Authorization"] = `Bearer ${apiKey}`;
+	}
+
+	const body = JSON.stringify({
+		model: modelId,
+		input: TEST_PROMPT,
+		max_output_tokens: MAX_TOKENS,
+		stream: true,
+	});
+
+	return await executeStreamTest(url, headers, body, result, (chunk) => {
+		// OpenAI Responses streaming uses response.output_text.delta for text
+		// and response.usage for token counts
+		const content = chunk.type === "response.output_text.delta"
+			? chunk.delta
+			: undefined;
+		const tokens =
+			chunk.type === "response.usage" && chunk.usage
+				? chunk.usage.output_tokens
+				: undefined;
+		return { content, outputTokens: tokens };
 	});
 }
 

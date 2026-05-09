@@ -9,7 +9,7 @@
  *
  * Supported locations (searched in order, project-local takes precedence on name collision):
  *   - <cwd>/.claude/commands/*.md   (project-local)
- *   - ~/.claude/commands/*.md       (global)
+ *   - <cwd>/.claude/commands/*.md   (project-local, including subdirectories)
  *
  * Claude Code file format:
  *   ---
@@ -75,7 +75,7 @@ function discoverCommands(cwd: string): ClaudeCommand[] {
 
 		let files: string[];
 		try {
-			files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+			files = readdirSync(dir, { recursive: true }).filter((f) => f.endsWith(".md")).sort();
 		} catch {
 			continue;
 		}
@@ -116,6 +116,7 @@ export default function claudeCommandsExtension(pi: ExtensionAPI) {
 	// The command handlers read from this map + re-read from disk so edits take effect immediately.
 	const commandMap = new Map<string, ClaudeCommand>();
 	let lastCwd = "";
+	const registeredNames = new Set<string>();
 
 	function refreshCommands(cwd: string): ClaudeCommand[] {
 		const commands = discoverCommands(cwd);
@@ -147,33 +148,36 @@ export default function claudeCommandsExtension(pi: ExtensionAPI) {
 		pi.sendUserMessage(body);
 	}
 
-	// Register per-command handlers on session start.
-	// Pi keeps all registered command names (they don't get replaced), so we
-	// only register new ones on cwd change.
-	pi.on("session_start", (_event, ctx) => {
-		const changed = ctx.cwd !== lastCwd;
-		const commands = refreshCommands(ctx.cwd);
-
-		if (changed) {
-			for (const cmd of commands) {
-				pi.registerCommand(cmd.name, {
-					description: cmd.description,
-					handler: async (_args, innerCtx) => {
-						const live = commandMap.get(cmd.name);
-						if (live) {
-							await handleCommand(live, innerCtx);
-						} else {
-							innerCtx.ui.notify(`Command "/${cmd.name}" not found. Run /reload to rediscover.`, "warning");
-						}
-					},
-				});
-			}
+	// Register per-command slash-command handlers on session start.
+	// Track which names we've already registered — Pi doesn't replace
+	// existing command names, so we only register new ones.
+	const registerNewCommands = (commands: Command[]) => {
+		for (const cmd of commands) {
+			if (registeredNames.has(cmd.name)) continue;
+			registeredNames.add(cmd.name);
+			pi.registerCommand(cmd.name, {
+				description: cmd.description,
+				handler: async (_args, innerCtx) => {
+					const live = commandMap.get(cmd.name);
+					if (live) {
+						await handleCommand(live, innerCtx);
+					} else {
+						innerCtx.ui.notify(`Command "/${cmd.name}" not found. Run /reload to rediscover.`, "warning");
+				}
+				},
+			});
 		}
+	};
+
+	pi.on("session_start", (_event, ctx) => {
+		const commands = refreshCommands(ctx.cwd);
+		registerNewCommands(commands);
 	});
 
-	// Keep the map fresh on reload too
+	// Keep the map fresh and register new commands on reload too
 	pi.on("resources_discover", (event) => {
-		refreshCommands(event.cwd);
+		const commands = refreshCommands(event.cwd);
+		registerNewCommands(commands);
 	});
 
 	// Meta-command: list and run discovered commands

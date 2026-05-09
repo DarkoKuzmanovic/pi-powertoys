@@ -11,6 +11,7 @@ A collection of standalone [Pi](https://github.com/mariozechner/pi) extensions. 
 | **context-enforcer** | — | Truncates large bash output to save context tokens and hard-blocks raw HTTP clients (`curl`, `wget`) in favor of context-mode tools. |
 | **claude-commands** | `/claude-commands` | Reads `.claude/commands/*.md` files and registers them as Pi slash commands. Works with both project-local and global commands. |
 | **quick-resume** | — | Prints a `pi --session <id>` command on exit so you can resume the session from your shell history. |
+| **session-recap** | `/recap`, `/recap-config` | Generates a session recap on idle return or on demand. Reorients you after being away — what's in progress, what's pending. |
 
 ## Install
 

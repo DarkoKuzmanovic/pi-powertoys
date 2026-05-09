@@ -251,7 +251,7 @@ export default function sessionRecap(pi: ExtensionAPI) {
 			// Change threshold
 			const threshold = await ctx.ui.select(
 				"Idle threshold (how long before auto-recap triggers)",
-				["15 minutes", "30 minutes", "60 minutes", "120 minutes"],
+				["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes", "60 minutes", "90 minutes", "120 minutes"],
 			);
 
 			if (threshold === undefined) return;

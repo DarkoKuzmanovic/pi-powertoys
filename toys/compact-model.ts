@@ -199,7 +199,9 @@ ${conversationText}
 				return;
 			}
 
-			ctx.ui.notify(`Compacted via ${model.id} ✓`, "success");
+			const estimatedAfter = Math.round(summary.length / 4);
+			const savings = Math.round((1 - estimatedAfter / tokensBefore) * 100);
+			ctx.ui.notify(`Compacted via ${model.id}: ${tokensBefore.toLocaleString()} → ~${estimatedAfter.toLocaleString()} tokens (~${savings}% saved) ✓`, "success");
 
 			return {
 				compaction: {

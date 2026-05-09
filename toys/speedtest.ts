@@ -85,6 +85,9 @@ async function runSpeedTest(
 	const baseUrl = (model.baseUrl as string).replace(/\/$/, "");
 
 	try {
+		if (api === "openai-codex-responses") {
+			return await runOpenAICodexResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);
+		}
 		if (api === "openai-responses") {
 			return await runOpenAIResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);
 		}
@@ -93,7 +96,8 @@ async function runSpeedTest(
 		}
 		// openai-completions and any OpenAI-compatible API
 		return await runOpenAITest(baseUrl, model.id, apiKey, extraHeaders, result);
-	} catch (e: any) {
+	}
+	catch (e: any) {
 		result.error = e?.message ?? String(e);
 		return result;
 	}
@@ -300,6 +304,156 @@ async function executeStreamTest(
 		result.totalMs = endTime - startTime;
 		result.outputTokens = outputTokens;
 
+		const generationMs = firstTokenTime !== null ? endTime - firstTokenTime : result.totalMs;
+		result.tps = generationMs > 0 ? (outputTokens / generationMs) * 1000 : 0;
+	} catch (e: any) {
+		if (e.name === "AbortError") {
+			result.error = `Timed out after ${TIMEOUT_MS / 1000}s`;
+		} else {
+			result.error = e?.message ?? String(e);
+		}
+	} finally {
+		clearTimeout(timeout);
+	}
+
+	return result;
+}
+
+// --- OpenAI Codex Responses API ---
+async function runOpenAICodexResponsesTest(
+	baseUrl: string,
+	modelId: string,
+	apiKey: string,
+	_extraHeaders: Record<string, string> | undefined,
+	result: SpeedTestResult,
+): Promise<SpeedTestResult> {
+	const resolved = baseUrl.replace(/\/+$/, "");
+	const url =
+		resolved.endsWith("/codex/responses") || resolved.endsWith("/codex")
+			? `${resolved}${resolved.endsWith("/codex") ? "/responses" : ""}`
+			: `${resolved}/codex/responses`;
+
+	// Extract account ID from JWT (compact format: header.payload.signature)
+	const accountId = (() => {
+		try {
+			const payload = apiKey.split(".")[1];
+			const decoded = JSON.parse(Buffer.from(payload, "base64url").toString());
+			return decoded.aid || decoded.sub || decoded.email || "";
+		} catch {
+			return "";
+		}
+	})();
+
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+		Authorization: `Bearer ${apiKey}`,
+		"openai-organization": "personal",
+		"OpenAI-Beta": "responses_websockets=2026-02-06",
+	};
+	if (accountId) {
+		headers["account-id"] = accountId;
+	}
+
+	const body = JSON.stringify({
+		model: modelId,
+		store: false,
+		stream: true,
+		instructions: "You are a helpful assistant.",
+		input: [{ role: "user", content: TEST_PROMPT }],
+		text: { verbosity: "low" },
+		include: ["reasoning.encrypted_content"],
+	});
+
+	const startTime = Date.now();
+	let firstTokenTime: number | null = null;
+	let outputTokens = 0;
+	let fullContent = "";
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+	try {
+		const response = await fetch(url, {
+			method: "POST",
+			headers,
+			body,
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			const text = await response.text();
+			result.error = `HTTP ${response.status}: ${text.slice(0, 200)}`;
+			return result;
+		}
+
+		if (!response.body) {
+			result.error = "No response body";
+			return result;
+		}
+
+		const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+		const decoder = new TextDecoder();
+		let buffer = "";
+
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			buffer += decoder.decode(value, { stream: true });
+
+			let idx = buffer.indexOf("\n\n");
+			while (idx !== -1) {
+				const chunk = buffer.slice(0, idx);
+				buffer = buffer.slice(idx + 2);
+
+				const dataLines = chunk
+					.split("\n")
+					.filter((l) => l.startsWith("data:"))
+					.map((l) => l.slice(5).trim())
+					.join("\n")
+					.trim();
+
+				if (!dataLines || dataLines === "[DONE]") {
+					idx = buffer.indexOf("\n\n");
+					continue;
+				}
+
+				try {
+					const event = JSON.parse(dataLines);
+					const type: string = event.type;
+
+					if (type === "response.output_text.delta") {
+						const text = event.delta;
+						if (text) {
+							fullContent += text;
+							if (firstTokenTime === null) {
+								firstTokenTime = Date.now();
+							}
+						}
+					} else if (
+						type === "response.done" ||
+						type === "response.completed" ||
+						type === "response.incomplete"
+					) {
+						const usage = event.response?.usage;
+						if (usage?.output_tokens || usage?.completion_tokens) {
+							outputTokens = usage.output_tokens || usage.completion_tokens;
+						}
+					}
+				} catch {
+					// skip malformed
+					}
+				idx = buffer.indexOf("\n\n");
+			}
+		}
+
+		const endTime = Date.now();
+		if (outputTokens === 0 && fullContent.length > 0) {
+			outputTokens = Math.ceil(fullContent.length / 4);
+		}
+
+		result.ttftMs = firstTokenTime !== null ? firstTokenTime - startTime : 0;
+		result.totalMs = endTime - startTime;
+		result.outputTokens = outputTokens;
 		const generationMs = firstTokenTime !== null ? endTime - firstTokenTime : result.totalMs;
 		result.tps = generationMs > 0 ? (outputTokens / generationMs) * 1000 : 0;
 	} catch (e: any) {

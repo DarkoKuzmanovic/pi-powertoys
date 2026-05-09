@@ -313,7 +313,7 @@ export default function sessionRecap(pi: ExtensionAPI) {
 			return;
 		}
 
-		const recap = await generateRecap(resolved.resolved, messages, awayMinutes, event.signal);
+		const recap = await generateRecap(resolved.resolved, messages, awayMinutes);
 		if (!recap) {
 			ctx.ui.notify("Auto-recap generated empty summary", "warning");
 			return;

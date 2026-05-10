@@ -9,13 +9,13 @@ A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agen
 | **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows. |
 | **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, and OpenAI responses APIs. |
 | **context-enforcer** | — | Truncates large bash output (both multi-line and single-line blobs like minified JSON) to save context tokens. Hard-blocks raw HTTP clients (`curl`, `wget`) in favor of context-mode tools. |
+| **session-guard** | — | Adds safety/coaching hooks from real session failures: broken extension symlink warnings, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices.
 | **claude-commands** | `/claude-commands` | Reads `.claude/commands/*.md` files (including subdirectories) and registers them as Pi slash commands. Works with both project-local and global commands. |
 | **quick-resume** | — | Prints a `pi --session <id>` command on exit so you can resume the session from your shell history. |
 | **session-recap** | `/recap`, `/recap-config` | Generates a session recap on idle return or on demand. Reorients you after being away — what's in progress, what's pending. |
 | **context** | `/context` | Shows current context usage — token count, context window, percentage, and a visual progress bar. Warns when nearing the limit. |
 | **color** | `/color` | Tags sessions with a color label (footer indicator) so you can visually distinguish multiple terminals. Persists across resume. |
 | **circuit-breaker** | `/circuit-breaker` | Stops compaction thrash loops. If compaction fires N times within M minutes, blocks further compaction and warns. |
-| **history** | `/history`, `/search` | Browse all sessions across every project and full-text search past conversations. Dual-action picker: Enter previews, Ctrl+O switches. |
 | **init** | `/init` | Generates a Pi-aware AGENTS.md for any project — tool hierarchy, file reading rules, architecture principles, subagent guidance. Detects project type and Pi docs path. |
 
 ## Install

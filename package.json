@@ -1,0 +1,66 @@
+{
+  "name": "pi-powertoys",
+  "version": "1.0.0",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, Claude commands, quick resume, session recap, context meter, color tags, circuit breaker, and project init",
+  "author": "Darko Kuzmanovic",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DarkoKuzmanovic/pi-powertoys.git"
+  },
+  "homepage": "https://github.com/DarkoKuzmanovic/pi-powertoys#readme",
+  "bugs": {
+    "url": "https://github.com/DarkoKuzmanovic/pi-powertoys/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "toys",
+    "extensions",
+    "tools",
+    "collection"
+  ],
+  "files": [
+    "toys/*.ts",
+    "install.sh",
+    "uninstall.sh",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "claude-code-changelog.md",
+    "claude-code-features.md",
+    "progress.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit --skipLibCheck"
+  },
+  "pi": {
+    "extensions": [
+      "./toys/compact-model.ts",
+      "./toys/speedtest.ts",
+      "./toys/context-enforcer.ts",
+      "./toys/session-guard.ts",
+      "./toys/claude-commands.ts",
+      "./toys/quick-resume.ts",
+      "./toys/session-recap.ts",
+      "./toys/context.ts",
+      "./toys/color.ts",
+      "./toys/circuit-breaker.ts",
+      "./toys/init.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "typescript": "^5.8.0"
+  }
+}

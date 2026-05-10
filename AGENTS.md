@@ -49,13 +49,13 @@ Load with defaults, save on change. Always handle missing/corrupt files graceful
 | `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
 | `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs |
 | `context-enforcer.ts` | — | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients |
+| `session-guard.ts` | — | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
 | `claude-commands.ts` | `/claude-commands` | Imports `.claude/commands/*.md` (including subdirectories) as Pi slash commands |
 | `quick-resume.ts` | — | Prints `pi --session <id>` on exit for easy resume |
 | `session-recap.ts` | `/recap`, `/recap-config` | Generates session recap on idle return or demand |
 | `circuit-breaker.ts` | `/circuit-breaker` | Stops compaction thrash loops (N compactions in M minutes) |
 | `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |
 | `color.ts` | `/color` | Tags sessions with a color label in the footer |
-| `history.ts` | `/history`, `/search` | Browse all sessions and full-text search past conversations |
 | `init.ts` | `/init` | Generates Pi-aware AGENTS.md with tool hierarchy, reading rules, and architecture guidance |
 
 ## Conventions

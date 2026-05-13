@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# pi-patcher — Detect and re-apply the intent-tracer validation patch after Pi updates.
+#
+# Pi's validation layer rejects the _i (intent) field that the intent-tracer
+# extension injects, because the extension event queue is async and no hook
+# can strip _i before validation runs. This script patches validateToolArguments()
+# in pi-ai to strip _i before validation.
+#
+# Usage:
+#   pi-patcher          # check and patch if needed
+#   pi-patcher --check  # exit 0 if patched, 1 if needs patching, 2 if error
+#   pi-patcher --force  # re-apply even if marker is present
+#
+# Safe to run repeatedly — idempotent.
+
+set -uo pipefail
+
+# ── Locate validation.js ──────────────────────────────────────
+PI_BIN="$(command -v pi 2>/dev/null)" || true
+if [[ -z "$PI_BIN" ]]; then
+    echo "error: pi not found in PATH" >&2
+    exit 2
+fi
+
+PI_REAL="$(readlink -f "$PI_BIN")"
+PI_PKG="$(dirname "$(dirname "$PI_REAL")")"
+VALIDATION_JS="$PI_PKG/node_modules/@earendil-works/pi-ai/dist/utils/validation.js"
+
+if [[ ! -f "$VALIDATION_JS" ]]; then
+    echo "error: validation.js not found at $VALIDATION_JS" >&2
+    exit 2
+fi
+
+# ── Marker for detection ──────────────────────────────────────
+MARKER='[pi-patcher]'
+
+# ── Detection helpers ─────────────────────────────────────────
+is_patched() {
+    grep -qF "$MARKER" "$VALIDATION_JS" 2>/dev/null
+}
+
+has_function_signature() {
+    grep -qF 'export function validateToolArguments(tool, toolCall)' "$VALIDATION_JS" 2>/dev/null
+}
+
+# ── Modes ─────────────────────────────────────────────────────
+MODE="${1:-}"
+
+if [[ "$MODE" == "--check" ]]; then
+    if is_patched; then
+        echo "ok: patch is applied"
+        echo "  $VALIDATION_JS"
+        exit 0
+    else
+        echo "needs-patch: _i stripping not found in validation.js"
+        echo "  $VALIDATION_JS"
+        exit 1
+    fi
+fi
+
+if is_patched && [[ "$MODE" != "--force" ]]; then
+    echo "ok: patch already applied — nothing to do"
+    echo "  $VALIDATION_JS"
+    exit 0
+fi
+
+# ── Verify the function signature exists ──────────────────────
+if ! has_function_signature; then
+    echo "error: validateToolArguments() signature not found" >&2
+    echo "  Pi may have restructured validation.js — manual review needed." >&2
+    exit 2
+fi
+
+# ── Write patch to temp file ─────────────────────────────────
+PATCH_FILE="$(mktemp)"
+trap 'rm -f "$PATCH_FILE"' EXIT
+
+cat > "$PATCH_FILE" << 'EOF'
+    // [pi-patcher] Strip _i (intent-tracer) before validation
+    if (toolCall.arguments && typeof toolCall.arguments === "object" && "_i" in toolCall.arguments) {
+        const { _i, ...rest } = toolCall.arguments;
+        toolCall = { ...toolCall, arguments: rest };
+    }
+EOF
+
+# ── Apply patch using node (reliable, no sed escaping issues) ─
+cp "$VALIDATION_JS" "${VALIDATION_JS}.bak"
+
+node -e '
+const fs = require("fs");
+const src = fs.readFileSync(process.argv[1], "utf8");
+const patch = fs.readFileSync(process.argv[2], "utf8");
+const marker = process.argv[3];
+const sig = "export function validateToolArguments(tool, toolCall) {";
+
+// Strip any existing patch (marker through closing brace line)
+let clean = src;
+const markerIdx = clean.indexOf(marker);
+if (markerIdx !== -1) {
+    // Find the start of the marker line
+    let lineStart = clean.lastIndexOf("\n", markerIdx);
+    lineStart = lineStart === -1 ? 0 : lineStart;
+    // Find "    }" closing the if-block after marker
+    const closingBrace = clean.indexOf("\n    }\n", markerIdx);
+    if (closingBrace !== -1) {
+        clean = clean.slice(0, lineStart) + clean.slice(closingBrace + 6);
+    }
+}
+
+// Insert patch after function signature
+const sigIdx = clean.indexOf(sig);
+if (sigIdx === -1) {
+    process.stderr.write("error: function signature not found after cleaning\n");
+    process.exit(1);
+}
+const insertAt = clean.indexOf("\n", sigIdx);
+const result = clean.slice(0, insertAt + 1) + patch + clean.slice(insertAt + 1);
+
+fs.writeFileSync(process.argv[1], result);
+' "$VALIDATION_JS" "$PATCH_FILE" "$MARKER"
+
+# ── Verify ────────────────────────────────────────────────────
+if is_patched; then
+    # Sanity: exactly one marker
+    count="$(grep -cF "$MARKER" "$VALIDATION_JS")"
+    if [[ "$count" -ne 1 ]]; then
+        echo "error: patch duplicated ($count markers) — restoring backup" >&2
+        mv "${VALIDATION_JS}.bak" "$VALIDATION_JS"
+        exit 2
+    fi
+    echo "patched: _i stripping applied successfully"
+    echo "  $VALIDATION_JS"
+    echo ""
+    echo "Restart Pi for the change to take effect."
+    rm -f "${VALIDATION_JS}.bak"
+    exit 0
+else
+    echo "error: patch application failed — restoring backup" >&2
+    mv "${VALIDATION_JS}.bak" "$VALIDATION_JS"
+    exit 2
+fi

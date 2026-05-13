@@ -151,7 +151,7 @@ export default function claudeCommandsExtension(pi: ExtensionAPI) {
 	// Register per-command slash-command handlers on session start.
 	// Track which names we've already registered — Pi doesn't replace
 	// existing command names, so we only register new ones.
-	const registerNewCommands = (commands: Command[]) => {
+	const registerNewCommands = (commands: ClaudeCommand[]) => {
 		for (const cmd of commands) {
 			if (registeredNames.has(cmd.name)) continue;
 			registeredNames.add(cmd.name);
@@ -215,8 +215,8 @@ export default function claudeCommandsExtension(pi: ExtensionAPI) {
 
 			const selected = await ctx.ui.select("Claude Commands", items);
 			if (selected) {
-				const cmdName = selected.split(" —")[0].slice(1);
-				const cmd = commandMap.get(cmdName) ?? commands.find((c) => c.name === cmdName);
+				const idx = items.indexOf(selected);
+				const cmd = commands[idx];
 				if (cmd) {
 					await handleCommand(cmd, ctx);
 				}

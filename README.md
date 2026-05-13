@@ -1,33 +1,63 @@
 # pi-powertoys
 
-A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agent) extensions. Each toy is a single file — install them all or pick what you need.
+A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agent) extensions. Each toy is a single TypeScript file — add them to your `settings.json` to load.
 
 ## Toys
 
-| Toy | Command | What it does |
-|-----|---------|-------------|
-| **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows. |
-| **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, and OpenAI responses APIs. |
-| **context-enforcer** | — | Truncates large bash output (both multi-line and single-line blobs like minified JSON) to save context tokens. Hard-blocks raw HTTP clients (`curl`, `wget`) in favor of context-mode tools. |
-| **session-guard** | — | Adds safety/coaching hooks from real session failures: broken extension symlink warnings, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices.
-| **claude-commands** | `/claude-commands` | Reads `.claude/commands/*.md` files (including subdirectories) and registers them as Pi slash commands. Works with both project-local and global commands. |
-| **quick-resume** | — | Prints a `pi --session <id>` command on exit so you can resume the session from your shell history. |
-| **session-recap** | `/recap`, `/recap-config` | Generates a session recap on idle return or on demand. Reorients you after being away — what's in progress, what's pending. |
-| **context** | `/context` | Shows current context usage — token count, context window, percentage, and a visual progress bar. Warns when nearing the limit. |
-| **color** | `/color` | Tags sessions with a color label (footer indicator) so you can visually distinguish multiple terminals. Persists across resume. |
-| **circuit-breaker** | `/circuit-breaker` | Stops compaction thrash loops. If compaction fires N times within M minutes, blocks further compaction and warns. |
-| **init** | `/init` | Generates a Pi-aware AGENTS.md for any project — tool hierarchy, file reading rules, architecture principles, subagent guidance. Detects project type and Pi docs path. |
+| Toy                  | Command                       | What it does                                                                                                                                                                                                      |
+| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **compact-model**    | `/compact-model`              | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows.                                                         |
+| **speedtest**        | `/speedtest`                  | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, and OpenAI responses APIs.                                                                             |
+| **context-enforcer** | —                             | Truncates large bash output (both multi-line and single-line blobs like minified JSON) to save context tokens. Hard-blocks raw HTTP clients (`curl`, `wget`) in favor of context-mode tools.                      |
+| **session-guard**    | —                             | Adds safety/coaching hooks from real session failures: broken extension symlink warnings, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices. |
+| **claude-commands**  | `/claude-commands`            | Reads `.claude/commands/*.md` files (including subdirectories) and registers them as Pi slash commands. Works with both project-local and global commands.                                                        |
+| **quick-resume**     | —                             | Prints a `pi --session <id>` command on exit so you can resume the session from your shell history.                                                                                                               |
+| **session-recap**    | `/recap`, `/recap-config`    | Generates a session recap on idle return or on demand. Reorients you after being away — what's in progress, what's pending.                                                                                       |
+| **context**          | `/context`                    | Shows current context usage — token count, context window, percentage, and a visual progress bar. Warns when nearing the limit.                                                                                   |
+| **color**            | `/color`                      | Tags sessions with a color label (footer indicator) so you can visually distinguish multiple terminals. Persists across resume.                                                                                   |
+| **circuit-breaker**  | `/circuit-breaker`            | Stops compaction thrash loops. If compaction fires N times within M minutes, blocks further compaction and warns.                                                                                                 |
+| **init**             | `/init`                       | Generates a Pi-aware AGENTS.md for any project — tool hierarchy, file reading rules, architecture principles, subagent guidance. Detects project type and Pi docs path.                                           |
+| **narrate**          | `/narrate`                    | Sets narration style for the session: default, verbose, teaching, caveman, or linus. Interactive TUI picker. Persists across restarts.                                                                             |
+| **contextual-working** | `/working-style`, `/working-indicator` | Replaces generic "Working..." with context-aware messages based on the active tool. Interactive TUI pickers for style and spinner. Persists across restarts. Can use AI to generate witty variants. |
+| **intent-tracer**    | —                             | Injects `_i` (intent) field into tool schemas so the model declares what it's trying to accomplish before each tool call.                                                                                          |
+| **json-guard**       | —                             | Validates JSON files after write/edit — warns the model immediately if syntax is broken so it can fix right away.                                                                                                 |
 
 ## Install
 
-```bash
-git clone https://github.com/DarkoKuzmanovic/pi-powertoys.git \
-  ~/.pi/agent/git/github.com/DarkoKuzmanovic/pi-powertoys
-cd ~/.pi/agent/git/github.com/DarkoKuzmanovic/pi-powertoys
-chmod +x install.sh && ./install.sh
+Add to `~/.pi/agent/settings.json`:
+
+```json
+{
+  "packages": [
+    {
+      "source": "/path/to/pi-powertoys",
+      "extensions": [
+        "toys/compact-model.ts",
+        "toys/speedtest.ts",
+        "toys/context-enforcer.ts",
+        "toys/session-guard.ts",
+        "toys/claude-commands.ts",
+        "toys/quick-resume.ts",
+        "toys/session-recap.ts",
+        "toys/context.ts",
+        "toys/color.ts",
+        "toys/circuit-breaker.ts",
+        "toys/init.ts",
+        "toys/narrate.ts",
+        "toys/contextual-working.ts",
+        "toys/intent-tracer.ts",
+        "toys/json-guard.ts"
+      ]
+    }
+  ]
+}
 ```
 
 Then restart Pi or run `/reload`.
+
+### Load individual toys
+
+Add just the ones you want to the `extensions` array in your `settings.json` package entry.
 
 ### Install individual toys
 
@@ -40,25 +70,41 @@ ln -sfn ~/.pi/agent/git/github.com/DarkoKuzmanovic/pi-powertoys/toys/speedtest.t
 
 ## Configuration
 
-### compact-model
+All persistent toy settings are stored in a single file: `~/.pi/agent/toys.json`.
 
-Stores its selected model in `~/.pi/agent/compact-model.json`:
+Each toy owns a top-level key:
 
-```json
-{
-  "provider": "wafer",
-  "model": "Qwen3.5-397B-A17B"
-}
+| Key                 | Toy                  | Example value                                                |
+| ------------------- | -------------------- | ----------------------------------------------------------- |
+| `narrate`           | narrate              | `{ "style": "verbose" }`                                    |
+| `compactModel`      | compact-model        | `{ "provider": "wafer", "model": "Qwen3.5-397B-A17B" }`     |
+| `recap`             | session-recap        | `{ "idleThresholdMinutes": 30, "enabled": true }`          |
+| `contextualWorking` | contextual-working   | `{ "messageStyle": "dynamic", "indicator": "braille" }`    |
+
+Legacy per-toy JSON files (`narrate-style.json`, `compact-model.json`, `session-recap.json`) are automatically migrated into `toys.json` on first load and removed.
+
+Run the relevant `/command` to change any setting via TUI picker, or edit `toys.json` directly.
+
+## Post-install: intent-tracer patch
+
+The **intent-tracer** toy injects an `_i` (intent) field into tool calls, but Pi's validation layer rejects unknown fields before any extension hook can strip them. The `bin/pi-patcher` script patches `validateToolArguments()` in `pi-ai` to strip `_i` automatically.
+
+```bash
+# Check if the patch is needed
+bin/pi-patcher --check
+
+# Apply the patch (idempotent — safe to run repeatedly)
+bin/pi-patcher
+
+# Force re-apply (e.g. after a Pi update)
+bin/pi-patcher --force
 ```
 
-Run `/compact-model` to change it via TUI, or delete the file to disable.
+Run `pi-patcher` after every Pi update — updates overwrite `validation.js` and the patch is lost.
 
 ## Uninstall
 
-```bash
-cd ~/.pi/agent/git/github.com/DarkoKuzmanovic/pi-powertoys
-chmod +x uninstall.sh && ./uninstall.sh
-```
+Remove the package entry from `~/.pi/agent/settings.json` and restart Pi.
 
 ## License
 

@@ -8,16 +8,14 @@
  * when the user returns after idleThresholdMinutes of inactivity.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
 import { complete } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 
-// --- Config paths ---
-const COMPACT_MODEL_CONFIG = join(homedir(), ".pi", "agent", "compact-model.json");
-const RECAP_CONFIG = join(homedir(), ".pi", "agent", "session-recap.json");
+// --- Config keys in toys.json ---
+const COMPACT_MODEL_KEY = "compactModel";
+const RECAP_KEY = "recap";
 
 // --- Types ---
 interface CompactModelConfig {
@@ -32,33 +30,22 @@ interface RecapConfig {
 
 // --- Config helpers ---
 function loadCompactModelConfig(): CompactModelConfig | null {
-	try {
-		if (!existsSync(COMPACT_MODEL_CONFIG)) return null;
-		const raw = JSON.parse(readFileSync(COMPACT_MODEL_CONFIG, "utf-8"));
-		if (raw?.provider && raw?.model) return raw as CompactModelConfig;
-		return null;
-	} catch {
-		return null;
-	}
+	const raw = loadToyConfig<CompactModelConfig>(COMPACT_MODEL_KEY);
+	if (raw?.provider && raw?.model) return raw;
+	return null;
 }
 
 function loadRecapConfig(): RecapConfig {
-	try {
-		if (!existsSync(RECAP_CONFIG)) return { idleThresholdMinutes: 30, enabled: true };
-		const raw = JSON.parse(readFileSync(RECAP_CONFIG, "utf-8"));
-		return {
-			idleThresholdMinutes: raw?.idleThresholdMinutes ?? 30,
-			enabled: raw?.enabled ?? true,
-		};
-	} catch {
-		return { idleThresholdMinutes: 30, enabled: true };
-	}
+	const raw = loadToyConfig<Partial<RecapConfig>>(RECAP_KEY);
+	if (!raw) return { idleThresholdMinutes: 30, enabled: true };
+	return {
+		idleThresholdMinutes: raw.idleThresholdMinutes ?? 30,
+		enabled: raw.enabled ?? true,
+	};
 }
 
 function saveRecapConfig(config: RecapConfig): void {
-	const dir = dirname(RECAP_CONFIG);
-	mkdirSync(dir, { recursive: true });
-	writeFileSync(RECAP_CONFIG, JSON.stringify(config, null, 2) + "\n", "utf-8");
+	saveToyConfig(RECAP_KEY, config);
 }
 
 // --- Shared model resolution ---

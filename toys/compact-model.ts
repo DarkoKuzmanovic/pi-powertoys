@@ -8,18 +8,15 @@
  * Commands:
  *   /compact-model — show current model, pick a new one, or disable
  *
- * Config stored at ~/.pi/agent/compact-model.json:
- *   { "provider": "wafer", "model": "Qwen3.5-397B-A17B" }
+ * Config stored in ~/.pi/agent/toys.json under the "compactModel" key.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { loadToyConfig, saveToyConfig, removeToyConfig } from "./toys-config.ts";
 import { complete } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "compact-model.json");
+const TOY_KEY = "compactModel";
 
 interface CompactModelConfig {
 	provider: string;
@@ -27,23 +24,16 @@ interface CompactModelConfig {
 }
 
 function loadConfig(): CompactModelConfig | null {
-	try {
-		if (!existsSync(CONFIG_PATH)) return null;
-		const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-		if (raw?.provider && raw?.model) return raw as CompactModelConfig;
-		return null;
-	} catch {
-		return null;
-	}
+	const raw = loadToyConfig<CompactModelConfig>(TOY_KEY);
+	if (raw?.provider && raw?.model) return raw;
+	return null;
 }
 
 function saveConfig(config: CompactModelConfig | null): void {
-	const dir = dirname(CONFIG_PATH);
-	mkdirSync(dir, { recursive: true });
 	if (config === null) {
-		writeFileSync(CONFIG_PATH, "{}\n", "utf-8");
+		removeToyConfig(TOY_KEY);
 	} else {
-		writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+		saveToyConfig(TOY_KEY, config);
 	}
 }
 

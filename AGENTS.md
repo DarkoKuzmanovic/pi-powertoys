@@ -6,9 +6,10 @@ A collection of standalone Pi extensions ("toys"). Each toy is a single TypeScri
 
 ```
 toys/           # All extension source files — one .ts file per toy
-install.sh      # Symlinks all toys into ~/.pi/agent/extensions/
-uninstall.sh    # Removes symlinks
+bin/            # Utility scripts (pi-patcher)
 ```
+
+Extensions are loaded via `~/.pi/agent/settings.json` — no installation script needed.
 
 ## Extension anatomy
 
@@ -34,40 +35,70 @@ export default function myToy(pi: ExtensionAPI) {
 
 ### Configuration pattern
 
-Toys that need persistent config use a JSON file in `~/.pi/agent/`:
+Toys that need persistent config use the shared `toys-config.ts` module, which stores everything in `~/.pi/agent/toys.json` under a top-level key per toy:
 
 ```typescript
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "<toy-name>.json");
+import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
+
+const TOY_KEY = "myToy";
+
+function loadConfig(): MyConfig | null {
+  return loadToyConfig<MyConfig>(TOY_KEY) ?? null;
+}
+
+function saveConfig(value: MyConfig): void {
+  saveToyConfig(TOY_KEY, value);
+}
 ```
 
-Load with defaults, save on change. Always handle missing/corrupt files gracefully.
+Legacy per-toy JSON files are auto-migrated on first load. Always handle missing/corrupt data gracefully.
 
 ## Current toys
 
-| File | Slash command | Purpose |
-|------|--------------|---------|
-| `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
-| `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs |
-| `context-enforcer.ts` | — | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients |
-| `session-guard.ts` | — | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
-| `claude-commands.ts` | `/claude-commands` | Imports `.claude/commands/*.md` (including subdirectories) as Pi slash commands |
-| `quick-resume.ts` | — | Prints `pi --session <id>` on exit for easy resume |
-| `session-recap.ts` | `/recap`, `/recap-config` | Generates session recap on idle return or demand |
-| `circuit-breaker.ts` | `/circuit-breaker` | Stops compaction thrash loops (N compactions in M minutes) |
-| `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |
-| `color.ts` | `/color` | Tags sessions with a color label in the footer |
-| `init.ts` | `/init` | Generates Pi-aware AGENTS.md with tool hierarchy, reading rules, and architecture guidance |
+| File                  | Slash command             | Purpose                                                                                                                                                                          |
+| --------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `compact-model.ts`    | `/compact-model`          | Offloads compaction to a user-selected model                                                                                                                                     |
+| `speedtest.ts`        | `/speedtest`              | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs                                                                   |
+| `context-enforcer.ts` | —                         | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients                                                                                               |
+| `session-guard.ts`    | —                         | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
+| `claude-commands.ts`  | `/claude-commands`        | Imports `.claude/commands/*.md` (including subdirectories) as Pi slash commands                                                                                                  |
+| `quick-resume.ts`     | —                         | Prints `pi --session <id>` on exit for easy resume                                                                                                                               |
+| `session-recap.ts`    | `/recap`, `/recap-config` | Generates session recap on idle return or demand                                                                                                                                 |
+| `circuit-breaker.ts`  | `/circuit-breaker`        | Stops compaction thrash loops (N compactions in M minutes)                                                                                                                       |
+| `context.ts`          | `/context`                | Shows token usage, context window %, and visual progress bar                                                                                                                     |
+| `color.ts`            | `/color`                  | Tags sessions with a color label in the footer                                                                                                                                   |
+| `init.ts`             | `/init`                   | Generates Pi-aware AGENTS.md with tool hierarchy, reading rules, and architecture guidance                                                                                       |
+| `narrate.ts`          | `/narrate`                | Narration styles: default, verbose, teaching, caveman, linus                                                                                                                     |
+| `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
+| `intent-tracer.ts`    | —                         | Injects `_i` intent field into tool schemas for better tool-call transparency                                                                                                    |
+| `json-guard.ts`       | —                         | Post-edit JSON syntax validation — warns model immediately if write breaks JSON                                                                                                  |
 
 ## Conventions
 
 - **One file = one toy.** No multi-file extensions. Keep dependencies to Node built-ins and Pi packages.
-- **Self-contained.** Each toy works independently — no imports between toys.
+- **Minimal cross-toy imports.** `toys-config.ts` is the only shared module — for persistence. All other toys remain self-contained.
 - **Graceful defaults.** Config files are optional; toys work out of the box with sensible defaults.
 - **TUI for config.** Use `ctx.ui.select()` / `ctx.ui.input()` for configuration, not manual file editing.
 - **Pi packages only.** Only `node:*` built-ins and `@earendil-works/*` packages (`pi-coding-agent`, `pi-ai`, `pi-tui`). No third-party dependencies.
+- **Use `LINE:HASH` anchors for edits.** After `read`, `grep`, `ast_search`, or `write`, copy the `LINE:HASH` anchor (e.g., `42:abc1`) into `edit` operations — never use raw line numbers.
 
 ## Pi extension docs
 
 Full API reference: `~/.nvm/versions/node/v24.12.0/lib/node_modules/@earendil-works/pi-coding-agent/docs/extensions.md`
 
 Check `~/.pi/agent/model-prompts/` for model-specific delegation and workflow guidance before starting complex work.
+
+## CodeGraph
+
+This project has a CodeGraph index (`.codegraph/`). Prefer these tools over grep/find when exploring code structure:
+
+| Task                       | Tool                | Why                                      |
+| -------------------------- | ------------------- | ---------------------------------------- |
+| Find a symbol by name      | `codegraph_search`  | Faster than grep, returns locations only |
+| Understand how a toy works | `codegraph_context` | Entry points + related symbols + source  |
+| Deep exploration           | `codegraph_explore` | Full source grouped by file, call graph  |
+| What calls X?              | `codegraph_callers` | Call hierarchy without manual tracing    |
+| What does X call?          | `codegraph_callees` | Downstream dependencies                  |
+| Impact of changing X       | `codegraph_impact`  | Blast radius before editing              |
+
+**When to use grep instead:** plain text search (comments, error messages, config values, non-code files).

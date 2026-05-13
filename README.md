@@ -24,33 +24,8 @@ A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agen
 
 ## Install
 
-Add to `~/.pi/agent/settings.json`:
-
-```json
-{
-  "packages": [
-    {
-      "source": "/path/to/pi-powertoys",
-      "extensions": [
-        "toys/compact-model.ts",
-        "toys/speedtest.ts",
-        "toys/context-enforcer.ts",
-        "toys/session-guard.ts",
-        "toys/claude-commands.ts",
-        "toys/quick-resume.ts",
-        "toys/session-recap.ts",
-        "toys/context.ts",
-        "toys/color.ts",
-        "toys/circuit-breaker.ts",
-        "toys/init.ts",
-        "toys/narrate.ts",
-        "toys/contextual-working.ts",
-        "toys/intent-tracer.ts",
-        "toys/json-guard.ts"
-      ]
-    }
-  ]
-}
+```shell
+pi install git:github.com/DarkoKuzmanovic/pi-powertoys
 ```
 
 Then restart Pi or run `/reload`.

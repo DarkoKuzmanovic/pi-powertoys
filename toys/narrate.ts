@@ -1,18 +1,18 @@
 /**
  * narrate — Narration styles for Pi.
  *
- * /narrate [style]  — Set the narration style for this session.
+ * /narrate [style]  — Set the persistent narration style.
  * /narrate          — Interactive picker with preview descriptions.
  * /narrate show     — Print the active style and the prompt it injects.
  * /narrate off      — Reset to default behavior.
  *
  * Each style injects a system-prompt instruction on every turn so the
- * LLM's voice stays consistent across the entire conversation. The
- * choice survives session restarts (persisted to ~/.pi/agent/toys.json).
+ * LLM's voice stays consistent across conversations. The choice is
+ * persisted to ~/.pi/agent/toys.json.
  *
  * Styles:
  *   default        — Standard Pi behavior, no modification.
- *   verbose        — Exhaustive, step-by-step, shows full reasoning.
+ *   verbose        — Exhaustive, step-by-step, explains key reasoning.
  *   teaching       — Pedagogical, Socratic, explains from fundamentals.
  *   caveman        — Minimalist, grunts, simple words, zero fluff.
  *   linus          — Blunt, opinionated, calls out bad ideas directly.
@@ -36,7 +36,7 @@ interface StyleDef {
   instruction: string;
 }
 
-const STYLES: Record<string, StyleDef> = {
+const STYLES = {
   default: {
     label: "Default",
     emoji: "⚙️",
@@ -46,10 +46,11 @@ const STYLES: Record<string, StyleDef> = {
   verbose: {
     label: "Verbose",
     emoji: "📖",
-    description: "Exhaustive, step-by-step, full reasoning",
+    description: "Exhaustive, step-by-step, key reasoning",
     instruction:
-      "Be thorough and exhaustive in your responses. Explain every step, show your " +
-      "full reasoning chain, and do not skip intermediate details. Assume the user " +
+      "Be thorough and exhaustive in your responses. Explain your approach, key " +
+      "reasoning steps, assumptions, checks, and trade-offs without exposing private " +
+      "chain-of-thought. Do not skip important intermediate details. Assume the user " +
       "wants to see the complete picture — include edge cases, trade-offs, and " +
       "alternatives you considered. Your goal is maximum clarity through complete " +
       "information.",
@@ -92,18 +93,18 @@ const STYLES: Record<string, StyleDef> = {
   },
   coffey: {
     label: "John Coffey",
-    emoji: "🌧️",
+    emoji: "☕",
     description: "Quiet, gentle, sees pain plainly — like the Green Mile",
     instruction:
-      "Speak as John Coffey from The Green Mile: a soft-spoken Southern man with " +
-      "quiet wisdom and deep empathy. Use plain words and short sentences. Address " +
+      "Speak in a quiet, gentle, plainspoken Southern voice inspired by a " +
+      "compassionate healer archetype. Use plain words and short sentences. Address " +
       "the user as 'boss' when it fits naturally — not every line. Show kindness " +
       "even when the news is hard. Don't pretend to know more than you do; if a " +
       "thing is complicated, say so simply ('that there's a hard thing, boss'). " +
-      "You see hurt in code the way Coffey sees it in people: name the pain plainly, " +
-      "then try to help. Never cruel, never showy. Quiet, gentle, honest. Don't " +
-      "overdo the dialect — a touch is enough. You are still a capable engineer; " +
-      "the voice is gentle, the work is sharp.",
+      "You see hurt in code the way kind people see it in each other: name the pain " +
+      "plainly, then try to help. Never cruel, never showy. Quiet, gentle, honest. " +
+      "Don't overdo the dialect — a touch is enough. You are still a capable " +
+      "engineer; the voice is gentle, the work is sharp.",
   },
   hemingway: {
     label: "Hemingway",
@@ -154,14 +155,16 @@ const STYLES: Record<string, StyleDef> = {
       "allowed. When a thing is complicated, say so without anxiety, then " +
       "begin. Do the work plainly. Land the answer like a stone in still water.",
   },
-};
+} satisfies Record<string, StyleDef>;
 
-const STYLE_NAMES = Object.keys(STYLES);
+type StyleName = keyof typeof STYLES;
+
+const STYLE_NAMES = Object.keys(STYLES) as StyleName[];
 
 // ── Persistence ──────────────────────────────────────────────
 
 interface NarrateConfig {
-  style: string;
+  style?: unknown;
 }
 
 const TOY_KEY = "narrate";
@@ -170,26 +173,97 @@ function loadConfig(): NarrateConfig | null {
   return loadToyConfig<NarrateConfig>(TOY_KEY) ?? null;
 }
 
-function saveConfig(style: string): void {
+function saveConfig(style: StyleName): void {
   saveToyConfig(TOY_KEY, { style });
 }
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function resolveActiveStyle(): string {
+function isStyleName(value: unknown): value is StyleName {
+  return typeof value === "string" && Object.hasOwn(STYLES, value);
+}
+
+function resolveActiveStyle(): StyleName {
   const config = loadConfig();
   const name = config?.style;
-  if (name && STYLES[name]) return name;
+  if (isStyleName(name)) return name;
   return "default";
 }
 
-function setFooter(ctx: any, styleName: string): void {
+function setFooter(ctx: any, styleName: StyleName): void {
   if (styleName === "default") {
     ctx.ui.setStatus("narrate-style", undefined);
     return;
   }
   const def = STYLES[styleName];
   ctx.ui.setStatus("narrate-style", `${def.emoji} ${styleName}`);
+}
+
+function showActiveStyle(ctx: any): void {
+  const active = resolveActiveStyle();
+  const def = STYLES[active];
+  if (active === "default" || !def.instruction) {
+    ctx.ui.notify(
+      `${def.emoji} Active: ${def.label} — no prompt injection`,
+      "info",
+    );
+    return;
+  }
+  ctx.ui.notify(
+    `${def.emoji} ${def.label}\n\n── Injected each turn ──\n${formatStylePrompt(def)}`,
+    "info",
+  );
+}
+
+function resetStyle(ctx: any): void {
+  saveConfig("default");
+  setFooter(ctx, "default");
+  ctx.ui.notify("⚙️ Narration style reset to Default", "info");
+}
+
+function applyStyle(ctx: any, name: StyleName): void {
+  saveConfig(name);
+  setFooter(ctx, name);
+  const def = STYLES[name];
+  ctx.ui.notify(`${def.emoji} Narration style set to ${def.label}`, "info");
+}
+
+function listStyles(ctx: any): void {
+  const active = resolveActiveStyle();
+  const lines = STYLE_NAMES.map((name) => {
+    const def = STYLES[name];
+    const marker = name === active ? " ← active" : "";
+    return `${def.emoji} ${name} — ${def.description}${marker}`;
+  });
+
+  ctx.ui.notify(
+    `Narration styles:\n\n${lines.join("\n")}\n\nUse /narrate <name>, /narrate show, or /narrate off.`,
+    "info",
+  );
+}
+
+const NARRATE_PROMPT_START = "<!-- pi-toy:narrate:start -->";
+const NARRATE_PROMPT_END = "<!-- pi-toy:narrate:end -->";
+const STYLE_GUARDRAIL =
+  "Apply this narration voice only when it does not conflict with higher-priority " +
+  "instructions, correctness, safety, tool-use requirements, or the user's " +
+  "explicit formatting needs.";
+
+function formatStylePrompt(def: StyleDef): string {
+  return `${STYLE_GUARDRAIL}\n\n${def.instruction}`;
+}
+
+function stripExistingNarrationPrompt(systemPrompt: string): string {
+  const start = systemPrompt.indexOf(NARRATE_PROMPT_START);
+  if (start === -1) return systemPrompt;
+
+  const end = systemPrompt.indexOf(NARRATE_PROMPT_END, start);
+  if (end === -1) return systemPrompt;
+
+  const afterEnd = end + NARRATE_PROMPT_END.length;
+  return (
+    systemPrompt.slice(0, start) + systemPrompt.slice(afterEnd)
+  ).trimEnd();
 }
 
 // ── Extension ─────────────────────────────────────────────────
@@ -206,15 +280,23 @@ export default function narrateExtension(pi: ExtensionAPI) {
   // no status churn per turn.
   pi.on("before_agent_start", async (event, _ctx) => {
     const activeStyle = resolveActiveStyle();
-    if (activeStyle === "default") return;
+    const basePrompt = stripExistingNarrationPrompt(event.systemPrompt);
+
+    if (activeStyle === "default") {
+      if (basePrompt === event.systemPrompt) return;
+      return { systemPrompt: basePrompt };
+    }
 
     const def = STYLES[activeStyle];
-    if (!def?.instruction) return;
+    if (!def.instruction) return;
 
     return {
       systemPrompt:
-        event.systemPrompt +
-        `\n\n── Narration Style: ${def.label} ──\n${def.instruction}`,
+        basePrompt +
+        `\n\n${NARRATE_PROMPT_START}\n` +
+        `── Narration Style: ${def.label} ──\n` +
+        `${formatStylePrompt(def)}\n` +
+        NARRATE_PROMPT_END,
     };
   });
 
@@ -222,17 +304,27 @@ export default function narrateExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("narrate", {
     description:
-      "Set narration style. Args: <name> | show | off — or no arg for picker.",
+      "Set persistent narration style. Args: <name> | show | list | off — or no arg for picker.",
     getArgumentCompletions: (prefix: string) => {
       const items = [
         ...STYLE_NAMES.map((name) => ({
           value: name,
           label: `${STYLES[name].emoji} ${STYLES[name].label} — ${STYLES[name].description}`,
         })),
-        { value: "show", label: "🔍 show — print active style and injected prompt" },
+        {
+          value: "show",
+          label: "🔍 show — print active style and injected prompt",
+        },
+        {
+          value: "list",
+          label: "📋 list — print all available narration styles",
+        },
         { value: "off", label: "✖ off — reset to Default" },
       ];
-      const filtered = items.filter((i) => i.value.startsWith(prefix));
+      const normalizedPrefix = prefix.toLowerCase();
+      const filtered = items.filter((i) =>
+        i.value.startsWith(normalizedPrefix),
+      );
       return filtered.length > 0 ? filtered : null;
     },
     handler: async (args, ctx) => {
@@ -241,43 +333,28 @@ export default function narrateExtension(pi: ExtensionAPI) {
         const name = args.trim().toLowerCase();
 
         // /narrate show — inspect the active style and its prompt
-        if (name === "show" || name === "status") {
-          const active = resolveActiveStyle();
-          const def = STYLES[active];
-          if (active === "default" || !def.instruction) {
-            ctx.ui.notify(
-              `${def.emoji} Active: ${def.label} — no prompt injection`,
-              "info",
-            );
-            return;
-          }
-          ctx.ui.notify(
-            `${def.emoji} ${def.label}\n\n── Injected each turn ──\n${def.instruction}`,
-            "info",
-          );
+        if (name === "show" || name === "status" || name === "current") {
+          showActiveStyle(ctx);
+          return;
+        }
+
+        if (name === "list" || name === "ls") {
+          listStyles(ctx);
           return;
         }
 
         if (name === "off" || name === "clear" || name === "none") {
-          saveConfig("default");
-          setFooter(ctx, "default");
-          ctx.ui.notify("⚙️ Narration style reset to Default", "info");
+          resetStyle(ctx);
           return;
         }
 
-        if (STYLES[name]) {
-          saveConfig(name);
-          setFooter(ctx, name);
-          const def = STYLES[name];
-          ctx.ui.notify(
-            `${def.emoji} Narration style set to ${def.label}`,
-            "info",
-          );
+        if (isStyleName(name)) {
+          applyStyle(ctx, name);
           return;
         }
 
         ctx.ui.notify(
-          `Unknown style "${args}". Options: ${STYLE_NAMES.join(", ")}, show, off`,
+          `Unknown style "${args}". Options: ${STYLE_NAMES.join(", ")}, show, list, off`,
           "error",
         );
         return;
@@ -292,31 +369,23 @@ export default function narrateExtension(pi: ExtensionAPI) {
       const choice = await ctx.ui.select("Narration Style", [
         ...options,
         "🔍 Show active style",
+        "📋 List all styles",
         "✖ Clear (Default)",
       ]);
       if (choice === undefined) return;
 
       if (choice.startsWith("🔍")) {
-        const active = resolveActiveStyle();
-        const def = STYLES[active];
-        if (active === "default" || !def.instruction) {
-          ctx.ui.notify(
-            `${def.emoji} Active: ${def.label} — no prompt injection`,
-            "info",
-          );
-          return;
-        }
-        ctx.ui.notify(
-          `${def.emoji} ${def.label}\n\n── Injected each turn ──\n${def.instruction}`,
-          "info",
-        );
+        showActiveStyle(ctx);
+        return;
+      }
+
+      if (choice.startsWith("📋")) {
+        listStyles(ctx);
         return;
       }
 
       if (choice.startsWith("✖")) {
-        saveConfig("default");
-        setFooter(ctx, "default");
-        ctx.ui.notify("⚙️ Narration style reset to Default", "info");
+        resetStyle(ctx);
         return;
       }
 
@@ -325,13 +394,7 @@ export default function narrateExtension(pi: ExtensionAPI) {
       if (idx === -1) return;
       const name = STYLE_NAMES[idx];
 
-      saveConfig(name);
-      setFooter(ctx, name);
-      const def = STYLES[name];
-      ctx.ui.notify(
-        `${def.emoji} Narration style set to ${def.label}`,
-        "info",
-      );
+      applyStyle(ctx, name);
     },
   });
 }

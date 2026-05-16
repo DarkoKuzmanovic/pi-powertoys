@@ -72,6 +72,9 @@ Legacy per-toy JSON files are auto-migrated on first load. Always handle missing
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
 | `intent-tracer.ts`    | —                         | Injects `_i` intent field into tool schemas for better tool-call transparency                                                                                                    |
 | `json-guard.ts`       | —                         | Post-edit JSON syntax validation — warns model immediately if write breaks JSON                                                                                                  |
+| `agent-steer.ts`      | `/steer`                  | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt                                                         |
+| `sys-prompt.ts`       | `/sys-prompt`             | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware                                                     |
+| `context-viewer.ts`   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy                                  |
 
 ## Conventions
 
@@ -102,3 +105,12 @@ This project has a CodeGraph index (`.codegraph/`). Prefer these tools over grep
 | Impact of changing X       | `codegraph_impact`  | Blast radius before editing              |
 
 **When to use grep instead:** plain text search (comments, error messages, config values, non-code files).
+
+### Spinners reference
+
+- **Source of all spinner definitions:** [`sindresorhus/cli-spinners`](https://raw.githubusercontent.com/sindresorhus/cli-spinners/master/spinners.json)
+  ~80 spinners available. Copy any entry into `toys/spinners.json` and it auto-loads on next session start.
+- **Per-toy file:** `toys/spinners.json` — defines spinner frames + intervalMs.
+- **Format:** `{ "spinnerName": { "frames": [...], "intervalMs": N } }`
+- **Custom spinners:** Edit the JSON, add any entry. No code changes needed.
+- **Fallback:** `contextual-working.ts` has a hardcoded `FALLBACK_INDICATORS` map in case the JSON is missing/corrupt.

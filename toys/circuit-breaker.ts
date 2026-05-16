@@ -88,22 +88,22 @@ export default function circuitBreaker(pi: ExtensionAPI) {
 			if (action.startsWith("Toggle")) {
 				config.enabled = !config.enabled;
 				saveConfig(config);
-				ctx.ui.notify(`Circuit breaker: ${config.enabled ? "ON" : "OFF"}`, "success");
+				ctx.ui.notify(`Circuit breaker: ${config.enabled ? "ON" : "OFF"}`, "info");
 			} else if (action.startsWith("Max")) {
 				const val = await ctx.ui.select("Max compactions before tripping", ["2", "3", "5", "8", "10"]);
 				if (val === undefined) return;
 				config.maxCompactions = parseInt(val, 10);
 				saveConfig(config);
-				ctx.ui.notify(`Max compactions set to ${config.maxCompactions}`, "success");
+				ctx.ui.notify(`Max compactions set to ${config.maxCompactions}`, "info");
 			} else if (action.startsWith("Window")) {
 				const val = await ctx.ui.select("Window (minutes)", ["2", "3", "5", "10", "15", "30"]);
 				if (val === undefined) return;
 				config.windowMinutes = parseInt(val, 10);
 				saveConfig(config);
-				ctx.ui.notify(`Window set to ${config.windowMinutes} min`, "success");
+				ctx.ui.notify(`Window set to ${config.windowMinutes} min`, "info");
 			} else if (action.startsWith("Reset")) {
 				compactionTimestamps.length = 0;
-				ctx.ui.notify("Trip counter cleared", "success");
+				ctx.ui.notify("Trip counter cleared", "info");
 			}
 		},
 	});

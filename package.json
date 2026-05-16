@@ -50,7 +50,10 @@
       "./toys/narrate.ts",
       "./toys/contextual-working.ts",
       "./toys/intent-tracer.ts",
-      "./toys/json-guard.ts"
+      "./toys/json-guard.ts",
+      "./toys/agent-steer.ts",
+      "./toys/sys-prompt.ts",
+      "./toys/context-viewer.ts"
     ]
   },
   "peerDependencies": {

@@ -75,7 +75,7 @@ function discoverCommands(cwd: string): ClaudeCommand[] {
 
 		let files: string[];
 		try {
-			files = readdirSync(dir, { recursive: true }).filter((f) => f.endsWith(".md")).sort();
+			files = readdirSync(dir, { recursive: true, encoding: "utf8" }).filter((f) => f.endsWith(".md")).sort();
 		} catch {
 			continue;
 		}

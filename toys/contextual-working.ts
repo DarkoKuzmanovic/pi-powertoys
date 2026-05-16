@@ -25,7 +25,7 @@ import { dirname } from "node:path";
 // ─── Configuration ───────────────────────────────────────────────
 
 type MessageStyle = "static" | "dynamic" | "ai";
-type IndicatorStyle = "braille" | "moon" | "earth" | "clock" | "triangle" | "pulse" | "arrows" | "noise" | "pipe" | "globe" | "dot" | "rainbow" | "none" | "aesthetic" | "boxBounce" | "monkey" | "shark";
+type IndicatorStyle = string;
 
 const PRIMARY_MODEL = "deepseek-v4-flash";
 const PRIMARY_API_BASE = "https://opencode.ai/zen/go/v1/chat/completions";
@@ -108,9 +108,24 @@ function framesPreview(frames: string[]): string {
 	// Show up to 4 frames joined, ellipsis if more
 	const preview = stripped.slice(0, 4).join("");
 	return stripped.length > 4 ? `${preview}…` : preview;
+	}
+
+	/** Render a frame preview suffix, safely handling optional/empty frames. */
+	function frameInfo(opts: WorkingIndicatorOptions): string {
+	const frames = opts.frames ?? [];
+	return frames.length > 0 ? ` ${framesPreview(frames)}` : "";
 }
 
-const INDICATORS: Record<IndicatorStyle, WorkingIndicatorOptions> = {
+// ─── Spinner Loader (JSON-backed) ──────────────────────────────
+
+interface SpinnerDef {
+	frames: string[];
+	intervalMs?: number;
+}
+
+const SPINNER_PATH = dirname(new URL(import.meta.url).pathname) + "/spinners.json";
+
+const FALLBACK_INDICATORS: Record<string, WorkingIndicatorOptions> = {
 	braille: {
 		frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
 		intervalMs: 80,
@@ -119,14 +134,6 @@ const INDICATORS: Record<IndicatorStyle, WorkingIndicatorOptions> = {
 		frames: ["🌑 ", "🌒 ", "🌓 ", "🌔 ", "🌕 ", "🌖 ", "🌗 ", "🌘 "],
 		intervalMs: 80,
 	},
-	earth: {
-		frames: ["🌍 ", "🌎 ", "🌏 "],
-		intervalMs: 180,
-	},
-	clock: {
-		frames: ["🕛 ", "🕐 ", "🕑 ", "🕒 ", "🕓 ", "🕔 ", "🕕 ", "🕖 ", "🕗 ", "🕘 ", "🕙 ", "🕚 "],
-		intervalMs: 100,
-	},
 	triangle: {
 		frames: ["◢", "◣", "◤", "◥"],
 		intervalMs: 50,
@@ -134,10 +141,6 @@ const INDICATORS: Record<IndicatorStyle, WorkingIndicatorOptions> = {
 	pulse: {
 		frames: ["⋅", "∙", "●", "∙"],
 		intervalMs: 120,
-	},
-	arrows: {
-		frames: ["←", "↖", "↑", "↗", "→", "↘", "↓", "↙"],
-		intervalMs: 100,
 	},
 	noise: {
 		frames: ["▓", "▒", "░"],
@@ -153,11 +156,6 @@ const INDICATORS: Record<IndicatorStyle, WorkingIndicatorOptions> = {
 	},
 	dot: {
 		frames: [colorize("●", PASTEL_RAINBOW[0]!)],
-		intervalMs: undefined,
-	},
-	rainbow: {
-		frames: PASTEL_RAINBOW.map((c) => colorize("●", c)),
-		intervalMs: 150,
 	},
 	none: {
 		frames: [],
@@ -170,22 +168,82 @@ const INDICATORS: Record<IndicatorStyle, WorkingIndicatorOptions> = {
 		frames: ["▖", "▘", "▝", "▗"],
 		intervalMs: 120,
 	},
-	monkey: {
-		frames: ["🙈 ", "🙈 ", "🙉 ", "🙊 "],
-		intervalMs: 300,
+	dots8Bit: {
+		frames: [
+			"⠀", "⠁", "⠂", "⠃", "⠄", "⠅", "⠆", "⠇",
+			"⡀", "⡁", "⡂", "⡃", "⡄", "⡅", "⡆", "⡇",
+			"⠈", "⠉", "⠊", "⠋", "⠌", "⠍", "⠎", "⠏",
+			"⡈", "⡉", "⡊", "⡋", "⡌", "⡍", "⡎", "⡏",
+			"⠐", "⠑", "⠒", "⠓", "⠔", "⠕", "⠖", "⠗",
+			"⡐", "⡑", "⡒", "⡓", "⡔", "⡕", "⡖", "⡗",
+			"⠘", "⠙", "⠚", "⠛", "⠜", "⠝", "⠞", "⠟",
+			"⡘", "⡙", "⡚", "⡛", "⡜", "⡝", "⡞", "⡟",
+			"⠠", "⠡", "⠢", "⠣", "⠤", "⠥", "⠦", "⠧",
+			"⡠", "⡡", "⡢", "⡣", "⡤", "⡥", "⡦", "⡧",
+			"⠨", "⠩", "⠪", "⠫", "⠬", "⠭", "⠮", "⠯",
+			"⡨", "⡩", "⡪", "⡫", "⡬", "⡭", "⡮", "⡯",
+			"⠰", "⠱", "⠲", "⠳", "⠴", "⠵", "⠶", "⠷",
+			"⡰", "⡱", "⡲", "⡳", "⡴", "⡵", "⡶", "⡷",
+			"⠸", "⠹", "⠺", "⠻", "⠼", "⠽", "⠾", "⠿",
+			"⡸", "⡹", "⡺", "⡻", "⡼", "⡽", "⡾", "⡿",
+			"⢀", "⢁", "⢂", "⢃", "⢄", "⢅", "⢆", "⢇",
+			"⣀", "⣁", "⣂", "⣃", "⣄", "⣅", "⣆", "⣇",
+			"⢈", "⢉", "⢊", "⢋", "⢌", "⢍", "⢎", "⢏",
+			"⣈", "⣉", "⣊", "⣋", "⣌", "⣍", "⣎", "⣏",
+			"⢐", "⢑", "⢒", "⢓", "⢔", "⢕", "⢖", "⢗",
+			"⣐", "⣑", "⣒", "⣓", "⣔", "⣕", "⣖", "⣗",
+			"⢘", "⢙", "⢚", "⢛", "⢜", "⢝", "⢞", "⢟",
+			"⣘", "⣙", "⣚", "⣛", "⣜", "⣝", "⣞", "⣟",
+			"⢠", "⢡", "⢢", "⢣", "⢤", "⢥", "⢦", "⢧",
+			"⣠", "⣡", "⣢", "⣣", "⣤", "⣥", "⣦", "⣧",
+			"⢨", "⢩", "⢪", "⢫", "⢬", "⢭", "⢮", "⢯",
+			"⣨", "⣩", "⣪", "⣫", "⣬", "⣭", "⣮", "⣯",
+			"⢰", "⢱", "⢲", "⢳", "⢴", "⢵", "⢶", "⢷",
+			"⣰", "⣱", "⣲", "⣳", "⣴", "⣵", "⣶", "⣷",
+			"⢸", "⢹", "⢺", "⢻", "⢼", "⢽", "⢾", "⢿",
+			"⣸", "⣹", "⣺", "⣻", "⣼", "⣽", "⣾", "⣿"
+		],
+		intervalMs: 80,
 	},
-	shark: {
-		frames: ["▐|\\____________▌", "▐_|\\___________▌", "▐__|\\__________▌", "▐___|\\_________▌", "▐____|\\________▌", "▐_____|\\_______▌", "▐______|\\______▌", "▐_______|\\_____▌", "▐________|\\____▌", "▐_________|\\___▌", "▐__________|\\__▌", "▐___________|\\_▌", "▐____________|\\▌", "▐____________/▌"],
+	growVertical: {
+		frames: ["▁", "▃", "▄", "▅", "▆", "▇", "▆", "▅", "▄", "▃"],
 		intervalMs: 120,
 	},
-};
+	growHorizontal: {
+		frames: ["▏", "▎", "▍", "▌", "▋", "▊", "▉", "▊", "▋", "▌", "▍", "▎"],
+		intervalMs: 120,
+	},
+	sand: {
+		frames: ["⠁", "⠂", "⠄", "⡀", "⡈", "⡐", "⡠", "⣀", "⣁", "⣂", "⣄", "⣌", "⣔", "⣤", "⣥", "⣦", "⣮", "⣶", "⣷", "⣿", "⡿", "⠿", "⢟", "⠟", "⡛", "⠛", "⠫", "⢋", "⠋", "⠍", "⡉", "⠉", "⠑", "⠡", "⢁"],
+		intervalMs: 80,
+	},
+	};
 
-const INDICATOR_NAMES: IndicatorStyle[] = [
-	"braille", "moon", "earth", "clock", "triangle",
-	"pulse", "arrows", "noise", "pipe", "globe",
-	"dot", "rainbow", "none",
-	"aesthetic", "boxBounce", "monkey", "shark",
-];
+let INDICATORS: Record<string, WorkingIndicatorOptions>;
+let INDICATOR_NAMES: string[];
+
+try {
+	const raw = readFileSync(SPINNER_PATH, "utf-8");
+	const parsed: Record<string, SpinnerDef> = JSON.parse(raw);
+	const built: Record<string, WorkingIndicatorOptions> = {};
+	const names: string[] = [];
+	for (const [key, def] of Object.entries(parsed)) {
+		if (def && Array.isArray(def.frames)) {
+			built[key] = { frames: def.frames };
+			if (def.intervalMs !== undefined) {
+				built[key].intervalMs = def.intervalMs;
+			}
+			names.push(key);
+		}
+	}
+	if (names.length === 0) throw new Error("No valid spinners found");
+	INDICATORS = built;
+	INDICATOR_NAMES = names;
+} catch (err) {
+	console.warn(`[contextual-working] Failed to load ${SPINNER_PATH}, using built-in fallback: ${(err as Error).message}`);
+	INDICATORS = FALLBACK_INDICATORS;
+	INDICATOR_NAMES = Object.keys(FALLBACK_INDICATORS);
+}
 
 // ─── Persistent JSON Cache ──────────────────────────────────────
 // Stores AI-generated messages per tool, growing over time.
@@ -480,7 +538,7 @@ export default function (pi: ExtensionAPI) {
 	const applyIndicator = (ctx: ExtensionContext) => {
 		const opts = INDICATORS[currentIndicator];
 		ctx.ui.setWorkingIndicator(opts);
-		const preview = opts.frames.length > 0 ? ` ${framesPreview(opts.frames)}` : "";
+		const preview = frameInfo(opts);
 		ctx.ui.setStatus(
 			"contextual-working",
 			ctx.ui.theme.fg("dim", `⟳ ${currentIndicator}${preview} · ${providerTag()} messages`),
@@ -598,7 +656,7 @@ export default function (pi: ExtensionAPI) {
 		// Cap length and apply
 		if (name.length > 60) name = name.slice(0, 57) + "...";
 		if (name) {
-			ctx.sessionManager.appendSessionInfo(name);
+			pi.setSessionName(name);
 		}
 	});
 	// until the next tool updates it.
@@ -663,7 +721,7 @@ export default function (pi: ExtensionAPI) {
 			} else {
 				const options = INDICATOR_NAMES.map((name) => {
 					const opts = INDICATORS[name];
-					const preview = opts.frames.length > 0 ? ` ${framesPreview(opts.frames)}` : "";
+					const preview = frameInfo(opts);
 					const marker = name === currentIndicator ? " ✓" : "";
 					return `${name}${preview}${marker}`;
 				});
@@ -681,7 +739,7 @@ export default function (pi: ExtensionAPI) {
 		applyIndicator(ctx);
 		saveWorkingConfig(messageStyle, currentIndicator);
 			const opts = INDICATORS[currentIndicator];
-			const preview = opts.frames.length > 0 ? ` ${framesPreview(opts.frames)}` : "";
+			const preview = frameInfo(opts);
 			ctx.ui.notify(`Working indicator: ${currentIndicator}${preview}`, "info");
 		},
 	});

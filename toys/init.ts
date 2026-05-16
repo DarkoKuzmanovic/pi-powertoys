@@ -219,7 +219,7 @@ async function resolvePiDocsRoot(pi: ExtensionAPI): Promise<string> {
 			"-e",
 			"console.log(require('path').dirname(require.resolve('@earendil-works/pi-coding-agent/package.json')))",
 		]);
-		if (result.exitCode === 0 && result.stdout.trim()) return result.stdout.trim();
+		if (result.code === 0 && result.stdout.trim()) return result.stdout.trim();
 	} catch {}
 	return "";
 }

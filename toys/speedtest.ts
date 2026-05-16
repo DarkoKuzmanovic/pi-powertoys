@@ -84,6 +84,11 @@ async function runSpeedTest(
 	const api = model.api as string;
 	const baseUrl = (model.baseUrl as string).replace(/\/$/, "");
 
+	if (!apiKey) {
+		result.error = "No API key resolved for this provider";
+		return result;
+	}
+
 	try {
 		if (api === "openai-codex-responses") {
 			return await runOpenAICodexResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);

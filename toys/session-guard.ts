@@ -27,7 +27,7 @@ function textFromContent(content: unknown): string {
 		.join("\n");
 }
 
-function contentWithText(text: string) {
+function contentWithText(text: string): { type: "text"; text: string }[] {
 	return [{ type: "text", text }];
 }
 

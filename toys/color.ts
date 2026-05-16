@@ -38,10 +38,11 @@ export default function colorExtension(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		const entries = ctx.sessionManager.getEntries();
 		for (let i = entries.length - 1; i >= 0; i--) {
-			const entry = entries[i] as any;
-			if (entry.customType === "session-color") {
-				if (entry.data?.color && COLORS[entry.data.color]) {
-					applyColor(entry.data.color, ctx);
+			const entry = entries[i];
+			if (entry.type === "custom" && entry.customType === "session-color") {
+				const data = entry.data as { color?: string } | undefined;
+				if (data?.color && COLORS[data.color]) {
+					applyColor(data.color, ctx);
 				}
 				break;
 			}
@@ -57,13 +58,13 @@ export default function colorExtension(pi: ExtensionAPI) {
 				if (name === "off" || name === "clear" || name === "none") {
 					clearColor(ctx);
 					pi.appendEntry("session-color", { color: null });
-					ctx.ui.notify("Session color cleared", "success");
+					ctx.ui.notify("Session color cleared", "info");
 					return;
 				}
 				if (COLORS[name]) {
 					applyColor(name, ctx);
 					pi.appendEntry("session-color", { color: name });
-					ctx.ui.notify(`Session color: ${COLORS[name]} ${name}`, "success");
+					ctx.ui.notify(`Session color: ${COLORS[name]} ${name}`, "info");
 					return;
 				}
 				ctx.ui.notify(`Unknown color "${name}". Options: ${COLOR_NAMES.join(", ")}`, "error");
@@ -82,7 +83,7 @@ export default function colorExtension(pi: ExtensionAPI) {
 			if (choice.startsWith("✖")) {
 				clearColor(ctx);
 				pi.appendEntry("session-color", { color: null });
-				ctx.ui.notify("Session color cleared", "success");
+				ctx.ui.notify("Session color cleared", "info");
 				return;
 			}
 
@@ -90,7 +91,7 @@ export default function colorExtension(pi: ExtensionAPI) {
 			if (COLORS[name]) {
 				applyColor(name, ctx);
 				pi.appendEntry("session-color", { color: name });
-				ctx.ui.notify(`Session color: ${COLORS[name]} ${name}`, "success");
+				ctx.ui.notify(`Session color: ${COLORS[name]} ${name}`, "info");
 			}
 		},
 	});

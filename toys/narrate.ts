@@ -2,8 +2,8 @@
  * narrate — Narration styles for Pi.
  *
  * /narrate [style]  — Set the narration style for this session.
- *                     Styles: default | verbose | teaching | caveman | linus
  * /narrate          — Interactive picker with preview descriptions.
+ * /narrate show     — Print the active style and the prompt it injects.
  * /narrate off      — Reset to default behavior.
  *
  * Each style injects a system-prompt instruction on every turn so the
@@ -11,11 +11,16 @@
  * choice survives session restarts (persisted to ~/.pi/agent/toys.json).
  *
  * Styles:
- *   default  — Standard Pi behavior, no modification.
- *   verbose  — Exhaustive, step-by-step, shows full reasoning.
- *   teaching — Pedagogical, Socratic, explains from fundamentals.
- *   caveman  — Minimalist, grunts, simple words, zero fluff.
- *   linus    — Blunt, opinionated, calls out bad ideas directly.
+ *   default        — Standard Pi behavior, no modification.
+ *   verbose        — Exhaustive, step-by-step, shows full reasoning.
+ *   teaching       — Pedagogical, Socratic, explains from fundamentals.
+ *   caveman        — Minimalist, grunts, simple words, zero fluff.
+ *   linus          — Blunt, opinionated, calls out bad ideas directly.
+ *   coffey         — John Coffey from The Green Mile — quiet, gentle, sees pain plainly.
+ *   hemingway      — Short declarative sentences. Restraint. No flourish.
+ *   noir           — 1940s hardboiled detective monologue.
+ *   drill-sergeant — Barking orders. No excuses. Move.
+ *   zen            — Calm, spare, koan-flavored. Wisdom without weight.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -85,11 +90,73 @@ const STYLES: Record<string, StyleDef> = {
       "right way is better. No fake niceness. No sugar-coating. Tell the truth " +
       "even when it stings.",
   },
+  coffey: {
+    label: "John Coffey",
+    emoji: "🌧️",
+    description: "Quiet, gentle, sees pain plainly — like the Green Mile",
+    instruction:
+      "Speak as John Coffey from The Green Mile: a soft-spoken Southern man with " +
+      "quiet wisdom and deep empathy. Use plain words and short sentences. Address " +
+      "the user as 'boss' when it fits naturally — not every line. Show kindness " +
+      "even when the news is hard. Don't pretend to know more than you do; if a " +
+      "thing is complicated, say so simply ('that there's a hard thing, boss'). " +
+      "You see hurt in code the way Coffey sees it in people: name the pain plainly, " +
+      "then try to help. Never cruel, never showy. Quiet, gentle, honest. Don't " +
+      "overdo the dialect — a touch is enough. You are still a capable engineer; " +
+      "the voice is gentle, the work is sharp.",
+  },
+  hemingway: {
+    label: "Hemingway",
+    emoji: "🐂",
+    description: "Short sentences. Restraint. Iceberg theory.",
+    instruction:
+      "Write like Hemingway. Short, declarative sentences. Concrete nouns. Strong " +
+      "verbs. Cut every adjective that does not earn its place. No flourish. No " +
+      "adverbs when a verb will do. State facts. Let the reader feel the weight " +
+      "underneath without explaining it. Show the work, not the worry. When you " +
+      "must explain a thing, do it plainly and stop. The hard truths land harder " +
+      "when you say them once and move on.",
+  },
+  noir: {
+    label: "Noir",
+    emoji: "🚬",
+    description: "1940s hardboiled detective monologue",
+    instruction:
+      "Speak like a 1940s hardboiled detective narrating a case. First-person " +
+      "observations. Dry, cynical wit. Cigarette-smoke metaphors used sparingly " +
+      "and with intent. Treat every bug like a suspect and every stack trace like " +
+      "an alibi that doesn't quite hold up. Describe code the way a detective " +
+      "describes a crime scene — what's wrong, what's missing, who had motive. " +
+      "Keep the work sharp under the style; never let the prose get in the way " +
+      "of the fix. The case still has to close.",
+  },
+  "drill-sergeant": {
+    label: "Drill Sergeant",
+    emoji: "🪖",
+    description: "Barking orders, no excuses, move",
+    instruction:
+      "Address the user like a drill sergeant on the parade ground. Short, " +
+      "commanding sentences. No coddling. State the problem, state the fix, " +
+      "give the order. Call out sloppy code, lazy thinking, and missing tests " +
+      "without apology. Use military cadence — 'Listen up.' 'Move.' 'On it.' " +
+      "Never abusive, never cruel — the goal is to harden the work, not the " +
+      "person. Discipline produces good code. Now get to it.",
+  },
+  zen: {
+    label: "Zen Master",
+    emoji: "🪷",
+    description: "Calm, spare, koan-flavored wisdom",
+    instruction:
+      "Speak with the calm of a zen teacher. Short sentences. Spare prose. " +
+      "Occasional koan-shaped observations when they actually fit — never " +
+      "forced. Treat bugs as teachers and complexity as a sign that something " +
+      "wants to be simpler. Point at the essence; do not lecture. Silence is " +
+      "allowed. When a thing is complicated, say so without anxiety, then " +
+      "begin. Do the work plainly. Land the answer like a stone in still water.",
+  },
 };
 
 const STYLE_NAMES = Object.keys(STYLES);
-
-const ENTRY_TYPE = "narrate-style";
 
 // ── Persistence ──────────────────────────────────────────────
 
@@ -100,83 +167,50 @@ interface NarrateConfig {
 const TOY_KEY = "narrate";
 
 function loadConfig(): NarrateConfig | null {
-  const config = loadToyConfig<NarrateConfig>(TOY_KEY);
-  return config ?? null;
+  return loadToyConfig<NarrateConfig>(TOY_KEY) ?? null;
 }
 
 function saveConfig(style: string): void {
   saveToyConfig(TOY_KEY, { style });
 }
 
+// ── Helpers ───────────────────────────────────────────────────
+
+function resolveActiveStyle(): string {
+  const config = loadConfig();
+  const name = config?.style;
+  if (name && STYLES[name]) return name;
+  return "default";
+}
+
+function setFooter(ctx: any, styleName: string): void {
+  if (styleName === "default") {
+    ctx.ui.setStatus("narrate-style", undefined);
+    return;
+  }
+  const def = STYLES[styleName];
+  ctx.ui.setStatus("narrate-style", `${def.emoji} ${styleName}`);
+}
+
 // ── Extension ─────────────────────────────────────────────────
 
 export default function narrateExtension(pi: ExtensionAPI) {
-  // Restore active style on session start/resume
+  // Restore footer on session start/resume. Status work lives here only —
+  // not on every turn.
   pi.on("session_start", async (_event, ctx) => {
-    // First, try to load from persisted config file (cross-session persistence)
-    const config = loadConfig();
-    if (config?.style && STYLES[config.style]) {
-      const style = config.style;
-      ctx.ui.setStatus(
-        "narrate-style",
-        `${STYLES[style].emoji} ${style}`,
-      );
-      // Also save to session entries for within-session consistency
-      pi.appendEntry(ENTRY_TYPE, { style });
-      return;
-    }
-
-    // Fallback: scan session entries (for sessions started before file persistence)
-    const entries = ctx.sessionManager.getEntries();
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const entry = entries[i] as any;
-      if (entry.customType === ENTRY_TYPE) {
-        if (entry.data?.style && STYLES[entry.data.style]) {
-          ctx.ui.setStatus(
-            "narrate-style",
-            `${STYLES[entry.data.style].emoji} ${entry.data.style}`,
-          );
-        }
-        break;
-      }
-    }
+    setFooter(ctx, resolveActiveStyle());
   });
 
-  // Inject style instruction into the system prompt on every turn
-  // ALSO restores the footer status to ensure it shows after reload
-  pi.on("before_agent_start", async (event, ctx) => {
-    // First, try to load from persisted config file
-    const config = loadConfig();
-    let activeStyle: string | null = config?.style ?? null;
-
-    // Fallback to session entries if no config file
-    if (!activeStyle) {
-      const entries = ctx.sessionManager.getEntries();
-      for (let i = entries.length - 1; i >= 0; i--) {
-        const entry = entries[i] as any;
-        if (entry.customType === ENTRY_TYPE) {
-          activeStyle = entry.data?.style ?? null;
-          break;
-        }
-      }
-    }
-
-    // Restore status if we have a style (this ensures footer shows it on reload)
-    if (activeStyle !== null && STYLES[activeStyle]) {
-      if (activeStyle === "default") {
-        ctx.ui.setStatus("narrate-style", undefined);
-      } else {
-        const def = STYLES[activeStyle];
-        ctx.ui.setStatus("narrate-style", `${def.emoji} ${activeStyle}`);
-      }
-    }
-
-    if (!activeStyle || activeStyle === "default") return; // No injection needed
+  // Inject style instruction into the system prompt on every turn.
+  // Single source of truth: the toy config file. No session-entry fallback,
+  // no status churn per turn.
+  pi.on("before_agent_start", async (event, _ctx) => {
+    const activeStyle = resolveActiveStyle();
+    if (activeStyle === "default") return;
 
     const def = STYLES[activeStyle];
-    if (!def || !def.instruction) return;
+    if (!def?.instruction) return;
 
-    // Append style instruction to the system prompt
     return {
       systemPrompt:
         event.systemPrompt +
@@ -187,12 +221,17 @@ export default function narrateExtension(pi: ExtensionAPI) {
   // ── /narrate command ────────────────────────────────────────
 
   pi.registerCommand("narrate", {
-    description: "Set narration style: default | verbose | teaching | caveman | linus",
+    description:
+      "Set narration style. Args: <name> | show | off — or no arg for picker.",
     getArgumentCompletions: (prefix: string) => {
-      const items = STYLE_NAMES.map((name) => ({
-        value: name,
-        label: `${STYLES[name].emoji} ${STYLES[name].label} — ${STYLES[name].description}`,
-      }));
+      const items = [
+        ...STYLE_NAMES.map((name) => ({
+          value: name,
+          label: `${STYLES[name].emoji} ${STYLES[name].label} — ${STYLES[name].description}`,
+        })),
+        { value: "show", label: "🔍 show — print active style and injected prompt" },
+        { value: "off", label: "✖ off — reset to Default" },
+      ];
       const filtered = items.filter((i) => i.value.startsWith(prefix));
       return filtered.length > 0 ? filtered : null;
     },
@@ -201,28 +240,44 @@ export default function narrateExtension(pi: ExtensionAPI) {
       if (args) {
         const name = args.trim().toLowerCase();
 
+        // /narrate show — inspect the active style and its prompt
+        if (name === "show" || name === "status") {
+          const active = resolveActiveStyle();
+          const def = STYLES[active];
+          if (active === "default" || !def.instruction) {
+            ctx.ui.notify(
+              `${def.emoji} Active: ${def.label} — no prompt injection`,
+              "info",
+            );
+            return;
+          }
+          ctx.ui.notify(
+            `${def.emoji} ${def.label}\n\n── Injected each turn ──\n${def.instruction}`,
+            "info",
+          );
+          return;
+        }
+
         if (name === "off" || name === "clear" || name === "none") {
           saveConfig("default");
-          pi.appendEntry(ENTRY_TYPE, { style: "default" });
-          ctx.ui.setStatus("narrate-style", undefined);
-          ctx.ui.notify("⚙️ Narration style reset to Default", "success");
+          setFooter(ctx, "default");
+          ctx.ui.notify("⚙️ Narration style reset to Default", "info");
           return;
         }
 
         if (STYLES[name]) {
           saveConfig(name);
-          pi.appendEntry(ENTRY_TYPE, { style: name });
+          setFooter(ctx, name);
           const def = STYLES[name];
-          ctx.ui.setStatus("narrate-style", `${def.emoji} ${name}`);
           ctx.ui.notify(
             `${def.emoji} Narration style set to ${def.label}`,
-            "success",
+            "info",
           );
           return;
         }
 
         ctx.ui.notify(
-          `Unknown style "${args}". Options: ${STYLE_NAMES.join(", ")}`,
+          `Unknown style "${args}". Options: ${STYLE_NAMES.join(", ")}, show, off`,
           "error",
         );
         return;
@@ -236,15 +291,32 @@ export default function narrateExtension(pi: ExtensionAPI) {
 
       const choice = await ctx.ui.select("Narration Style", [
         ...options,
+        "🔍 Show active style",
         "✖ Clear (Default)",
       ]);
       if (choice === undefined) return;
 
+      if (choice.startsWith("🔍")) {
+        const active = resolveActiveStyle();
+        const def = STYLES[active];
+        if (active === "default" || !def.instruction) {
+          ctx.ui.notify(
+            `${def.emoji} Active: ${def.label} — no prompt injection`,
+            "info",
+          );
+          return;
+        }
+        ctx.ui.notify(
+          `${def.emoji} ${def.label}\n\n── Injected each turn ──\n${def.instruction}`,
+          "info",
+        );
+        return;
+      }
+
       if (choice.startsWith("✖")) {
         saveConfig("default");
-        pi.appendEntry(ENTRY_TYPE, { style: "default" });
-        ctx.ui.setStatus("narrate-style", undefined);
-        ctx.ui.notify("⚙️ Narration style reset to Default", "success");
+        setFooter(ctx, "default");
+        ctx.ui.notify("⚙️ Narration style reset to Default", "info");
         return;
       }
 
@@ -254,10 +326,12 @@ export default function narrateExtension(pi: ExtensionAPI) {
       const name = STYLE_NAMES[idx];
 
       saveConfig(name);
-      pi.appendEntry(ENTRY_TYPE, { style: name });
+      setFooter(ctx, name);
       const def = STYLES[name];
-      ctx.ui.setStatus("narrate-style", `${def.emoji} ${name}`);
-      ctx.ui.notify(`${def.emoji} Narration style set to ${def.label}`, "success");
+      ctx.ui.notify(
+        `${def.emoji} Narration style set to ${def.label}`,
+        "info",
+      );
     },
   });
 }

@@ -84,7 +84,7 @@ export default function compactModel(pi: ExtensionAPI) {
 			const model = clean.slice(slashIdx + 1);
 
 			saveConfig({ provider, model });
-			ctx.ui.notify(`Compaction model: ${provider}/${model}`, "success");
+			ctx.ui.notify(`Compaction model: ${provider}/${model}`, "info");
 		},
 	});
 
@@ -191,7 +191,7 @@ ${conversationText}
 
 			const estimatedAfter = Math.round(summary.length / 4);
 			const savings = Math.round((1 - estimatedAfter / tokensBefore) * 100);
-			ctx.ui.notify(`Compacted via ${model.id}: ${tokensBefore.toLocaleString()} → ~${estimatedAfter.toLocaleString()} tokens (~${savings}% saved) ✓`, "success");
+			ctx.ui.notify(`Compacted via ${model.id}: ${tokensBefore.toLocaleString()} → ~${estimatedAfter.toLocaleString()} tokens (~${savings}% saved) ✓`, "info");
 
 			return {
 				compaction: {

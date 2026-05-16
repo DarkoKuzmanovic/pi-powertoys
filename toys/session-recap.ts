@@ -231,7 +231,7 @@ export default function sessionRecap(pi: ExtensionAPI) {
 				config.enabled = !config.enabled;
 				saveRecapConfig(config);
 				const newLabel = config.enabled ? "ON" : "OFF";
-				ctx.ui.notify(`Auto-recap: ${newLabel}`, "success");
+				ctx.ui.notify(`Auto-recap: ${newLabel}`, "info");
 				return;
 			}
 
@@ -250,7 +250,7 @@ export default function sessionRecap(pi: ExtensionAPI) {
 			saveRecapConfig(config);
 			ctx.ui.notify(
 				`Idle threshold set to ${minutes} minutes`,
-				"success",
+				"info",
 			);
 		},
 	});
@@ -307,7 +307,7 @@ export default function sessionRecap(pi: ExtensionAPI) {
 		}
 
 		lastRecapTimestamp = Date.now();
-		ctx.ui.notify(`Recap ready (away ${awayMinutes} min) ✓`, "success");
+		ctx.ui.notify(`Recap ready (away ${awayMinutes} min) ✓`, "info");
 
 		return {
 			message: {

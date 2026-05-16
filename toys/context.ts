@@ -48,7 +48,7 @@ export default function contextExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const modelName = model ? (model as any).name || (model as any).id : "unknown";
+			const modelName = model?.id ?? "unknown";
 			const { tokens: totalTokens, contextWindow, percent } = usage;
 
 			// ── Gather data ─────────────────────────────────────

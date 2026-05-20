@@ -24,6 +24,7 @@ A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agen
 | **agent-steer**      | `/steer`                      | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt. `/steer <text>` bypasses the prompt and injects directly.                                                                   |
 | **sys-prompt**       | `/sys-prompt`                 | Session-scoped system-prompt snippet manager — appends fenced additions to every turn. Persists across `/reload` and fork.                                                                                          |
 | **context-viewer**   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of the full system prompt or entire LLM context. Live `/` search, `n`/`N` navigation, `y` clipboard copy.                                                           |
+| **ultrathink**       | `/ultrathink`, `alt+u`         | Detects "ultrathink" as you type in the editor and toggles a status flag; pi-hud renders it as a rainbow chip in the footer. Manual toggle via `/ultrathink` or `alt+u`.                                              |
 
 ## Install
 

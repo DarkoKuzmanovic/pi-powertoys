@@ -26,8 +26,12 @@ const TRUNCATE_AFTER_CHARS = 2000;
 const PREVIEW_HEAD_LINES = 10;
 const PREVIEW_TAIL_LINES = 5;
 
-// ── Hard blocks (HTTP clients only) ─────────────────────────
+// ── Hard blocks (HTTP clients only) ─────────────
 // These should ALWAYS use ctx_fetch_and_index, not bash.
+// Local URLs are exempted — health checks / dev-server probes are harmless
+// and the block is pure friction there.
+
+const LOCAL_URL = /\b(?:localhost|127\.0\.0\.1|0\.0\.0\.0|::1|\[::1\])\b/;
 
 const HARD_BLOCKED: Array<{ pattern: RegExp; name: string; tool: string }> = [
   { pattern: /\bcurl\b/, name: "curl", tool: "ctx_fetch_and_index" },
@@ -52,8 +56,12 @@ export default function contextModeEnforcer(pi: any) {
       const command = String(event?.input?.command ?? "").trim();
       if (!command) return;
 
+      // Local URLs bypass the block — health checks, dev-server probes,
+      // etc. produce tiny output and the block is just in the way.
+      const isLocal = LOCAL_URL.test(command);
+
       for (const { pattern, name, tool } of HARD_BLOCKED) {
-        if (pattern.test(command)) {
+        if (pattern.test(command) && !isLocal) {
           return {
             block: true,
             reason: `Use ${tool} instead of ${name} in bash. ` +

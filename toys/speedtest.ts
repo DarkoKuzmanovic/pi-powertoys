@@ -1,9 +1,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 // --- Config ---
-const TEST_PROMPT = "Say 'hello world' and nothing else.";
-const MAX_TOKENS = 128;
-const TIMEOUT_MS = 30_000;
+const TEST_PROMPT = "Write a short paragraph (3-4 sentences) about the history of the printing press and its impact on society.";
+const MAX_TOKENS = 512;
+const TIMEOUT_MS = 60_000;
+const WARMUP_PROMPT = "Say 'ok'.";
+const WARMUP_MAX_TOKENS = 16;
+const DEFAULT_RUNS = 3;
 
 // --- Types ---
 interface SpeedTestResult {
@@ -13,7 +16,9 @@ interface SpeedTestResult {
 	ttftMs: number;
 	tps: number;
 	totalMs: number;
-	outputTokens: number;
+	outputTokens: number;   // content-based token count (accurate)
+	reportedTokens: number;  // from usage field (may be allocation, not actual)
+	chunkCount: number;
 	apiType: string;
 	error?: string;
 }
@@ -21,15 +26,18 @@ interface SpeedTestResult {
 // --- Main ---
 export default function speedTestExtension(pi: ExtensionAPI) {
 	pi.registerCommand("speedtest", {
-		description: "Benchmark active model's TPS, TTFT, and latency",
-		handler: async (_args, ctx) => {
+		description: "Benchmark active model's TPS, TTFT, and latency. Usage: /speedtest [N] (default 3 runs, /speedtest 1 for quick)",
+		handler: async (args, ctx) => {
 			const model = ctx.model;
 			if (!model) {
 				ctx.ui.notify("No active model. Use /model to select one.", "error");
 				return;
 			}
 
-			ctx.ui.setStatus("speedtest", `⏱ Testing ${model.id}...`);
+			// Parse optional run count: /speedtest 1
+			const numRuns = Math.max(1, Math.min(10, parseInt(args?.trim() || String(DEFAULT_RUNS), 10) || DEFAULT_RUNS));
+
+			ctx.ui.notify(`⏱ Speed test: ${model.id} (${numRuns} run${numRuns > 1 ? "s" : ""})...`, "info");
 
 			const authResult = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 			if (!authResult.ok) {
@@ -38,30 +46,71 @@ export default function speedTestExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const result = await runSpeedTest(model, authResult.apiKey, authResult.headers);
-			ctx.ui.setStatus("speedtest", undefined);
+			// Warm-up request (discarded — warms connection, avoids cold-start)
+			ctx.ui.setStatus("speedtest", `⏱ Warming up...`);
+			await runSpeedTest(model, authResult.apiKey, authResult.headers, WARMUP_PROMPT, WARMUP_MAX_TOKENS);
 
-			if (result.error) {
-				ctx.ui.notify(`Speedtest failed: ${result.error}`, "error");
-				return;
+			// Measurement runs
+			const runs: SpeedTestResult[] = [];
+			for (let i = 0; i < numRuns; i++) {
+				ctx.ui.setStatus("speedtest", `⏱ Run ${i + 1}/${numRuns}...`);
+				const result = await runSpeedTest(model, authResult.apiKey, authResult.headers, TEST_PROMPT, MAX_TOKENS);
+				if (result.error) {
+					ctx.ui.setStatus("speedtest", undefined);
+					ctx.ui.notify(`Speedtest failed on run ${i + 1}: ${result.error}`, "error");
+					return;
+				}
+				runs.push(result);
 			}
 
-			const rating = result.tps >= 50 ? "🟢" : result.tps >= 20 ? "🟡" : "🔴";
-			const label = result.tps >= 50 ? "fast" : result.tps >= 20 ? "moderate" : "slow";
+			ctx.ui.setStatus("speedtest", undefined);
 
-			ctx.ui.notify(
-				[
-					`${rating} Speed Test: ${result.modelName}`,
-					`  TTFT:    ${result.ttftMs.toFixed(0)} ms`,
-					`  TPS:     ${result.tps.toFixed(1)} tok/s (${label})`,
-					`  Total:   ${result.totalMs.toFixed(0)} ms`,
-					`  Tokens:  ${result.outputTokens}`,
-					`  API:     ${result.apiType}`,
-				].join("\n"),
-				"info",
-			);
+			// Compute results
+			const medianTtft = median(runs.map((r) => r.ttftMs));
+			const medianTps = median(runs.map((r) => r.tps));
+			const medianTotal = median(runs.map((r) => r.totalMs));
+			const avgTokens = Math.round(runs.reduce((s, r) => s + r.outputTokens, 0) / runs.length);
+			const avgChunks = Math.round(runs.reduce((s, r) => s + r.chunkCount, 0) / runs.length);
+
+			const rating = medianTps >= 50 ? "🟢" : medianTps >= 20 ? "🟡" : "🔴";
+			const label = medianTps >= 50 ? "fast" : medianTps >= 20 ? "moderate" : "slow";
+
+			const runLabel = numRuns > 1 ? `${numRuns} runs, median` : "1 run";
+			const lines: string[] = [
+				`${rating} Speed Test: ${runs[0]!.modelName} (${runLabel})`,
+				`  TTFT:    ${medianTtft.toFixed(0)} ms`,
+				`  TPS:     ${medianTps.toFixed(1)} tok/s (${label})`,
+				`  Total:   ${medianTotal.toFixed(0)} ms`,
+				`  Tokens:  ${avgTokens} (content)`,
+				`  Chunks:  ${avgChunks}`,
+				`  API:     ${runs[0]!.apiType}`,
+			];
+
+			// Show per-run detail if there's meaningful variance
+			if (numRuns > 1) {
+				const tpsValues = runs.map((r) => r.tps);
+				const tpsRange = Math.max(...tpsValues) - Math.min(...tpsValues);
+				if (tpsRange > medianTps * 0.1) {
+					lines.push(`  (range: ${Math.min(...tpsValues).toFixed(1)}–${Math.max(...tpsValues).toFixed(1)} tok/s)`);
+				}
+			}
+
+			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
+}
+
+// --- Helpers ---
+function median(values: number[]): number {
+	const sorted = [...values].sort((a, b) => a - b);
+	const mid = Math.floor(sorted.length / 2);
+	return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+/** Count tokens from actual content text. ~1.3 tokens/word for English. */
+function countContentTokens(text: string): number {
+	const words = text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+	return Math.ceil(words * 1.3);
 }
 
 // --- Speedtest runner ---
@@ -69,6 +118,8 @@ async function runSpeedTest(
 	model: any,
 	apiKey: string | undefined,
 	extraHeaders: Record<string, string> | undefined,
+	prompt: string,
+	maxTokens: number,
 ): Promise<SpeedTestResult> {
 	const result: SpeedTestResult = {
 		provider: model.provider,
@@ -78,6 +129,8 @@ async function runSpeedTest(
 		tps: 0,
 		totalMs: 0,
 		outputTokens: 0,
+		reportedTokens: 0,
+		chunkCount: 0,
 		apiType: model.api as string,
 	};
 
@@ -91,18 +144,17 @@ async function runSpeedTest(
 
 	try {
 		if (api === "openai-codex-responses") {
-			return await runOpenAICodexResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);
+			return await runOpenAICodexResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
 		}
 		if (api === "openai-responses") {
-			return await runOpenAIResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result);
+			return await runOpenAIResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
 		}
 		if (api === "anthropic-messages") {
-			return await runAnthropicTest(baseUrl, model.id, apiKey, extraHeaders, result);
+			return await runAnthropicTest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
 		}
 		// openai-completions and any OpenAI-compatible API
-		return await runOpenAITest(baseUrl, model.id, apiKey, extraHeaders, result);
-	}
-	catch (e: any) {
+		return await runOpenAITest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
+	} catch (e: any) {
 		result.error = e?.message ?? String(e);
 		return result;
 	}
@@ -115,6 +167,8 @@ async function runOpenAITest(
 	apiKey: string | undefined,
 	extraHeaders: Record<string, string> | undefined,
 	result: SpeedTestResult,
+	prompt: string,
+	maxTokens: number,
 ): Promise<SpeedTestResult> {
 	const url = `${baseUrl}/chat/completions`;
 	const headers: Record<string, string> = {
@@ -127,8 +181,8 @@ async function runOpenAITest(
 
 	const body = JSON.stringify({
 		model: modelId,
-		messages: [{ role: "user", content: TEST_PROMPT }],
-		max_tokens: MAX_TOKENS,
+		messages: [{ role: "user", content: prompt }],
+		max_tokens: maxTokens,
 		stream: true,
 		stream_options: { include_usage: true },
 	});
@@ -147,6 +201,8 @@ async function runOpenAIResponsesTest(
 	apiKey: string | undefined,
 	extraHeaders: Record<string, string> | undefined,
 	result: SpeedTestResult,
+	prompt: string,
+	maxTokens: number,
 ): Promise<SpeedTestResult> {
 	const url = `${baseUrl}/responses`;
 	const headers: Record<string, string> = {
@@ -159,14 +215,12 @@ async function runOpenAIResponsesTest(
 
 	const body = JSON.stringify({
 		model: modelId,
-		input: TEST_PROMPT,
-		max_output_tokens: MAX_TOKENS,
+		input: prompt,
+		max_output_tokens: maxTokens,
 		stream: true,
 	});
 
 	return await executeStreamTest(url, headers, body, result, (chunk) => {
-		// OpenAI Responses streaming uses response.output_text.delta for text
-		// and response.usage for token counts
 		const content = chunk.type === "response.output_text.delta"
 			? chunk.delta
 			: undefined;
@@ -185,6 +239,8 @@ async function runAnthropicTest(
 	apiKey: string | undefined,
 	extraHeaders: Record<string, string> | undefined,
 	result: SpeedTestResult,
+	prompt: string,
+	maxTokens: number,
 ): Promise<SpeedTestResult> {
 	const url = `${baseUrl}/v1/messages`;
 
@@ -204,8 +260,8 @@ async function runAnthropicTest(
 
 	const body = JSON.stringify({
 		model: modelId,
-		messages: [{ role: "user", content: TEST_PROMPT }],
-		max_tokens: MAX_TOKENS,
+		messages: [{ role: "user", content: prompt }],
+		max_tokens: maxTokens,
 		stream: true,
 	});
 
@@ -232,8 +288,9 @@ async function executeStreamTest(
 ): Promise<SpeedTestResult> {
 	const startTime = Date.now();
 	let firstTokenTime: number | null = null;
-	let outputTokens = 0;
+	let reportedTokens = 0;
 	let fullContent = "";
+	let chunkCount = 0;
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -284,12 +341,13 @@ async function executeStreamTest(
 
 						if (chunk.content) {
 							fullContent += chunk.content;
+							chunkCount++;
 							if (firstTokenTime === null) {
 								firstTokenTime = Date.now();
 							}
 						}
 						if (chunk.outputTokens) {
-							outputTokens = chunk.outputTokens;
+							reportedTokens = chunk.outputTokens;
 						}
 					} catch {
 						// Skip malformed JSON chunks
@@ -300,14 +358,15 @@ async function executeStreamTest(
 
 		const endTime = Date.now();
 
-		// Estimate tokens from content length if usage not provided
-		if (outputTokens === 0 && fullContent.length > 0) {
-			outputTokens = Math.ceil(fullContent.length / 4);
-		}
+		// Use content-based token counting (accurate) over usage field (may be allocation)
+		const contentTokens = fullContent.length > 0 ? countContentTokens(fullContent) : 0;
+		const outputTokens = contentTokens > 0 ? contentTokens : reportedTokens;
 
 		result.ttftMs = firstTokenTime !== null ? firstTokenTime - startTime : 0;
 		result.totalMs = endTime - startTime;
 		result.outputTokens = outputTokens;
+		result.reportedTokens = reportedTokens;
+		result.chunkCount = chunkCount;
 
 		const generationMs = firstTokenTime !== null ? endTime - firstTokenTime : result.totalMs;
 		result.tps = generationMs > 0 ? (outputTokens / generationMs) * 1000 : 0;
@@ -331,6 +390,8 @@ async function runOpenAICodexResponsesTest(
 	apiKey: string,
 	_extraHeaders: Record<string, string> | undefined,
 	result: SpeedTestResult,
+	prompt: string,
+	maxTokens: number,
 ): Promise<SpeedTestResult> {
 	const resolved = baseUrl.replace(/\/+$/, "");
 	const url =
@@ -364,15 +425,16 @@ async function runOpenAICodexResponsesTest(
 		store: false,
 		stream: true,
 		instructions: "You are a helpful assistant.",
-		input: [{ role: "user", content: TEST_PROMPT }],
+		input: [{ role: "user", content: prompt }],
 		text: { verbosity: "low" },
 		include: ["reasoning.encrypted_content"],
 	});
 
 	const startTime = Date.now();
 	let firstTokenTime: number | null = null;
-	let outputTokens = 0;
+	let reportedTokens = 0;
 	let fullContent = "";
+	let chunkCount = 0;
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -430,6 +492,7 @@ async function runOpenAICodexResponsesTest(
 						const text = event.delta;
 						if (text) {
 							fullContent += text;
+							chunkCount++;
 							if (firstTokenTime === null) {
 								firstTokenTime = Date.now();
 							}
@@ -441,24 +504,28 @@ async function runOpenAICodexResponsesTest(
 					) {
 						const usage = event.response?.usage;
 						if (usage?.output_tokens || usage?.completion_tokens) {
-							outputTokens = usage.output_tokens || usage.completion_tokens;
+							reportedTokens = usage.output_tokens || usage.completion_tokens;
 						}
 					}
 				} catch {
 					// skip malformed
-					}
+				}
 				idx = buffer.indexOf("\n\n");
 			}
 		}
 
 		const endTime = Date.now();
-		if (outputTokens === 0 && fullContent.length > 0) {
-			outputTokens = Math.ceil(fullContent.length / 4);
-		}
+
+		// Use content-based token counting (accurate) over usage field (may be allocation)
+		const contentTokens = fullContent.length > 0 ? countContentTokens(fullContent) : 0;
+		const outputTokens = contentTokens > 0 ? contentTokens : reportedTokens;
 
 		result.ttftMs = firstTokenTime !== null ? firstTokenTime - startTime : 0;
 		result.totalMs = endTime - startTime;
 		result.outputTokens = outputTokens;
+		result.reportedTokens = reportedTokens;
+		result.chunkCount = chunkCount;
+
 		const generationMs = firstTokenTime !== null ? endTime - firstTokenTime : result.totalMs;
 		result.tps = generationMs > 0 ? (outputTokens / generationMs) * 1000 : 0;
 	} catch (e: any) {

@@ -870,12 +870,7 @@ export default function (pi: ExtensionAPI) {
     const preview = frameInfo(opts);
     ctx.ui.setStatus(
       "contextual-working",
-      ctx.ui.theme.fg(
-        "dim",
-        [`💬${preview.trim() ? " " + preview.trim() : ""}`, providerTag()].join(
-          " · ",
-        ),
-      ),
+      `\udb81\udff6 ${[preview.trim() ? ctx.ui.theme.fg("accent", preview.trim()) : "", ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
     );
   };
 

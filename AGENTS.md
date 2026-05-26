@@ -75,6 +75,8 @@ Legacy per-toy JSON files are auto-migrated on first load. Always handle missing
 | `agent-steer.ts`      | `/steer`                  | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt                                                         |
 | `sys-prompt.ts`       | `/sys-prompt`             | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware                                                     |
 | `context-viewer.ts`   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy                                  |
+| `ultrathink.ts`       | `/ultrathink`, `Alt+U`   | Toggles "ultrathink" status chip in footer; detects keyword as you type                                                                              |
+| `crof-models.ts`      | `/crof`                   | Scrapes crof.ai/pricing, shows models sorted by speed with filters (`--vision`, `--quant`, `--min-speed`), 10-min cache                                                          |
 
 ## Conventions
 

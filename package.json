@@ -26,10 +26,7 @@
     "toys/*.ts",
     "README.md",
     "AGENTS.md",
-    "LICENSE",
-    "claude-code-changelog.md",
-    "claude-code-features.md",
-    "progress.md"
+    "LICENSE"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck"

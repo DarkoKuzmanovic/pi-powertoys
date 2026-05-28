@@ -3,9 +3,9 @@
 // When you press Ctrl+D twice to exit Pi, this extension prints:
 //
 //   Resume this session with:
-//   pi --session <session-id>
+//   pi --session-id <session-id>
 //
-// Uses --session (not --resume) because --resume opens a picker,
+// Uses --session-id (not --resume) because --resume opens a picker,
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import * as path from "node:path";
@@ -30,7 +30,7 @@ export default function piQuickResume(pi: ExtensionAPI) {
 		// Print after Pi's own exit message
 		process.stdout.write(
 			`\n${dim}Resume this session with:${reset}\n` +
-			`${bold}pi --session ${uuid}${reset}\n\n`,
+			`${bold}pi --session-id ${uuid}${reset}\n\n`,
 		);
 	});
 }

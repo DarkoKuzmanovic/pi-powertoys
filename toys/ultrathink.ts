@@ -99,9 +99,6 @@ export default function (pi: ExtensionAPI) {
 		stopEditorWatch();
 	});
 
-	pi.on("session_switch", async () => {
-		stopEditorWatch();
-	});
 
 	// Manual toggle command
 	pi.registerCommand("ultrathink", {
@@ -119,7 +116,7 @@ export default function (pi: ExtensionAPI) {
 				if (!currentText.toLowerCase().includes("ultrathink")) {
 					ctx.ui.setEditorText(currentText ? `${currentText}\n\nULTRATHINK` : "ULTRATHINK");
 				}
-				ctx.ui.notify("Ultrathink enabled - will be added to prompt", "success");
+				ctx.ui.notify("Ultrathink enabled - will be added to prompt", "info");
 			}
 		},
 	});
@@ -140,7 +137,7 @@ export default function (pi: ExtensionAPI) {
 				if (!currentText.toLowerCase().includes("ultrathink")) {
 					ctx.ui.setEditorText(currentText ? `${currentText}\n\nULTRATHINK` : "ULTRATHINK");
 				}
-				ctx.ui.notify("Ultrathink enabled - will be added to prompt", "success");
+				ctx.ui.notify("Ultrathink enabled - will be added to prompt", "info");
 			}
 		},
 	});

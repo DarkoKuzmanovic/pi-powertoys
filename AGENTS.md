@@ -76,6 +76,7 @@ Legacy per-toy JSON files are auto-migrated on first load. Always handle missing
 | `sys-prompt.ts`       | `/sys-prompt`             | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware                                                     |
 | `context-viewer.ts`   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy                                  |
 | `ultrathink.ts`       | `/ultrathink`, `Alt+U`   | Toggles "ultrathink" status chip in footer; detects keyword as you type                                                                              |
+| `kitty-attention.ts`  | `/kitty-attention`       | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed                                                |
 | `crof-models.ts`      | `/crof`                   | Scrapes crof.ai/pricing, shows models sorted by speed with filters (`--vision`, `--quant`, `--min-speed`), 10-min cache                                                          |
 
 ## Conventions
@@ -85,6 +86,7 @@ Legacy per-toy JSON files are auto-migrated on first load. Always handle missing
 - **Graceful defaults.** Config files are optional; toys work out of the box with sensible defaults.
 - **TUI for config.** Use `ctx.ui.select()` / `ctx.ui.input()` for configuration, not manual file editing.
 - **Pi packages only.** Only `node:*` built-ins and `@earendil-works/*` packages (`pi-coding-agent`, `pi-ai`, `pi-tui`). No third-party dependencies.
+- **When adding a toy, update both manifests.** `package.json`'s `pi.extensions` is the package manifest, but this machine's active `~/.pi/agent/settings.json` uses an object-form package entry with an explicit `extensions` allowlist. Pi docs say package filters narrow what the manifest allows, so a new toy will not load after `/reload` unless it is also added to that settings entry.
 - **Use `LINE:HASH` anchors for edits.** After `read`, `grep`, `ast_search`, or `write`, copy the `LINE:HASH` anchor (e.g., `42:abc1`) into `edit` operations — never use raw line numbers.
 
 ## Pi extension docs

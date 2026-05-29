@@ -26,6 +26,7 @@ A collection of standalone [Pi](https://github.com/earendil-works/pi-coding-agen
 | **sys-prompt**       | `/sys-prompt`                 | Session-scoped system-prompt snippet manager — appends fenced additions to every turn. Persists across `/reload` and fork.                                                                                          |
 | **context-viewer**   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of the full system prompt or entire LLM context. Live `/` search, `n`/`N` navigation, `y` clipboard copy.                                                           |
 | **ultrathink**       | `/ultrathink`, `alt+u`         | Detects "ultrathink" as you type in the editor and toggles a status flag; pi-hud renders it as a rainbow chip in the footer. Manual toggle via `/ultrathink` or `alt+u`.                                              |
+| **kitty-attention**  | `/kitty-attention`           | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 
 ## Install
 
@@ -60,10 +61,31 @@ Each toy owns a top-level key:
 | `compactModel`      | compact-model        | `{ "provider": "wafer", "model": "Qwen3.5-397B-A17B" }`     |
 | `recap`             | session-recap        | `{ "idleThresholdMinutes": 30, "enabled": true }`          |
 | `contextualWorking` | contextual-working   | `{ "messageStyle": "dynamic", "indicator": "braille" }`    |
+| `kittyAttention`    | kitty-attention      | `{ "enabled": true, "popup": true, "bell": true, "notifyOnDone": true }` |
 
 Legacy per-toy JSON files (`narrate-style.json`, `compact-model.json`, `session-recap.json`) are automatically migrated into `toys.json` on first load and removed.
 
 Run the relevant `/command` to change any setting via TUI picker, or edit `toys.json` directly.
+
+### Kitty attention notifications
+
+`kitty-attention` emits Kitty's OSC 99 desktop notification escape code and a terminal bell by default. It notifies on completed LLM turns, `ask_user` questions, and common attention-needed tools such as Obsidian approval prompts and interactive shell overlays.
+
+Configure it with:
+
+```text
+/kitty-attention status
+/kitty-attention test
+/kitty-attention on|off
+/kitty-attention popup on|off
+/kitty-attention bell on|off
+/kitty-attention done on|off
+/kitty-attention question on|off
+/kitty-attention attention on|off
+/kitty-attention expire 8000
+```
+
+Popup notifications are only emitted in Kitty (`KITTY_WINDOW_ID` or `TERM` contains `kitty`). Set `PI_KITTY_ATTENTION_FORCE=1` to force OSC 99 output while testing.
 
 ## Post-install: intent-tracer patch
 

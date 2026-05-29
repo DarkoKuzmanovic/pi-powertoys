@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, Claude commands, quick resume, session recap, context meter, color tags, circuit breaker, project init, narration styles, contextual working messages, intent tracer, JSON guard, ultrathink status chip, and Crof AI model browser",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, Claude commands, quick resume, session recap, context meter, color tags, circuit breaker, project init, narration styles, contextual working messages, intent tracer, JSON guard, ultrathink status chip, Kitty attention notifications, and Crof AI model browser",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -52,6 +52,7 @@
       "./toys/sys-prompt.ts",
       "./toys/context-viewer.ts",
       "./toys/ultrathink.ts",
+      "./toys/kitty-attention.ts",
       "./toys/crof-models.ts"
     ]
   },

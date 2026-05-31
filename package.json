@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, Claude commands, quick resume, session recap, context meter, color tags, circuit breaker, project init, narration styles, contextual working messages, intent tracer, JSON guard, ultrathink status chip, Kitty attention notifications, and Crof AI model browser",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, context meter, color tags, circuit breaker, contextual working messages, intent tracer, JSON guard, agent steering, system-prompt snippets, context viewer, ultrathink status chip, Kitty attention notifications, and extension linting",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -37,14 +37,9 @@
       "./toys/speedtest.ts",
       "./toys/context-enforcer.ts",
       "./toys/session-guard.ts",
-      "./toys/claude-commands.ts",
-      "./toys/quick-resume.ts",
-      "./toys/session-recap.ts",
       "./toys/context.ts",
       "./toys/color.ts",
       "./toys/circuit-breaker.ts",
-      "./toys/init.ts",
-      "./toys/narrate.ts",
       "./toys/contextual-working.ts",
       "./toys/intent-tracer.ts",
       "./toys/json-guard.ts",
@@ -53,7 +48,7 @@
       "./toys/context-viewer.ts",
       "./toys/ultrathink.ts",
       "./toys/kitty-attention.ts",
-      "./toys/crof-models.ts"
+      "./toys/lint.ts"
     ]
   },
   "peerDependencies": {

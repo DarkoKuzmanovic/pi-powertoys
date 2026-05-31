@@ -55,29 +55,26 @@ Legacy per-toy JSON files are auto-migrated on first load. Always handle missing
 
 ## Current toys
 
-| File                  | Slash command             | Purpose                                                                                                                                                                          |
-| --------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `compact-model.ts`    | `/compact-model`          | Offloads compaction to a user-selected model                                                                                                                                     |
-| `speedtest.ts`        | `/speedtest`              | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs                                                                   |
-| `context-enforcer.ts` | —                         | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients                                                                                               |
-| `session-guard.ts`    | —                         | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
-| `claude-commands.ts`  | `/claude-commands`        | Imports `.claude/commands/*.md` (including subdirectories) as Pi slash commands                                                                                                  |
-| `quick-resume.ts`     | —                         | Prints `pi --session <id>` on exit for easy resume                                                                                                                               |
-| `session-recap.ts`    | `/recap`, `/recap-config` | Generates session recap on idle return or demand                                                                                                                                 |
-| `circuit-breaker.ts`  | `/circuit-breaker`        | Stops compaction thrash loops (N compactions in M minutes)                                                                                                                       |
-| `context.ts`          | `/context`                | Shows token usage, context window %, and visual progress bar                                                                                                                     |
-| `color.ts`            | `/color`                  | Tags sessions with a color label in the footer                                                                                                                                   |
-| `init.ts`             | `/init`                   | Generates Pi-aware AGENTS.md with tool hierarchy, reading rules, and architecture guidance                                                                                       |
-| `narrate.ts`          | `/narrate`                | Narration styles: default, verbose, teaching, caveman, linus, coffey, hemingway, noir, drill-sergeant, zen                                                                       |
+| File | Slash command | Purpose |
+| --- | --- | --- |
+| `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
+| `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs |
+| `context-enforcer.ts` | — | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients |
+| `session-guard.ts` | — | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
+| `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |
+| `color.ts` | `/color` | Tags sessions with a color label in the footer |
+| `circuit-breaker.ts` | `/circuit-breaker` | Stops compaction thrash loops (N compactions in M minutes) |
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
-| `intent-tracer.ts`    | —                         | Injects `_i` intent field into tool schemas for better tool-call transparency                                                                                                    |
-| `json-guard.ts`       | —                         | Post-edit JSON syntax validation — warns model immediately if write breaks JSON                                                                                                  |
-| `agent-steer.ts`      | `/steer`                  | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt                                                         |
-| `sys-prompt.ts`       | `/sys-prompt`             | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware                                                     |
-| `context-viewer.ts`   | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy                                  |
-| `ultrathink.ts`       | `/ultrathink`, `Alt+U`   | Toggles "ultrathink" status chip in footer; detects keyword as you type                                                                              |
-| `kitty-attention.ts`  | `/kitty-attention`       | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed                                                |
-| `crof-models.ts`      | `/crof`                   | Scrapes crof.ai/pricing, shows models sorted by speed with filters (`--vision`, `--quant`, `--min-speed`), 10-min cache                                                          |
+| `intent-tracer.ts` | — | Injects `_i` intent field into tool schemas for better tool-call transparency |
+| `json-guard.ts` | — | Post-edit JSON syntax validation — warns model immediately if write breaks JSON |
+| `agent-steer.ts` | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt |
+| `sys-prompt.ts` | `/sys-prompt` | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware |
+| `context-viewer.ts` | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy |
+| `ultrathink.ts` | `/ultrathink`, `Alt+U` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
+| `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
+| `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
+
+Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, and `session-recap.ts`.
 
 ## Conventions
 

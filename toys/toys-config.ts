@@ -2,7 +2,7 @@
  * toys-config — Shared persistence for pi-powertoys.
  *
  * All toy settings live in a single file: ~/.pi/agent/toys.json
- * Each toy owns a top-level key (e.g. "narrate", "compactModel", "recap").
+ * Each toy owns a top-level key (e.g. "compactModel", "contextualWorking").
  *
  * On first load, legacy per-toy JSON files are migrated into toys.json
  * and the old files are removed.
@@ -17,9 +17,7 @@ const CONFIG_PATH = join(homedir(), ".pi", "agent", "toys.json");
 // ── Legacy paths (for one-time migration) ──────────────────────
 
 const LEGACY: Record<string, string> = {
-	narrate: join(homedir(), ".pi", "agent", "narrate-style.json"),
 	compactModel: join(homedir(), ".pi", "agent", "compact-model.json"),
-	recap: join(homedir(), ".pi", "agent", "session-recap.json"),
 };
 
 // ── Read / write ────────────────────────────────────────────────

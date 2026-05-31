@@ -56,7 +56,7 @@ ln -sfn ~/.pi/agent/git/github.com/DarkoKuzmanovic/pi-powertoys/toys/speedtest.t
 
 ## Configuration
 
-Persistent toy settings are stored in a single file: `~/.pi/agent/toys.json`.
+Persistent toy settings are stored in a single file: `~/.pi/agent/cache/pi-powertoys/toys.json`.
 
 | Key | Toy | Example value |
 | --- | --- | --- |
@@ -64,9 +64,9 @@ Persistent toy settings are stored in a single file: `~/.pi/agent/toys.json`.
 | `contextualWorking` | contextual-working | `{ "messageStyle": "dynamic", "indicator": "braille" }` |
 | `kittyAttention` | kitty-attention | `{ "enabled": true, "popup": true, "bell": true, "notifyOnDone": true }` |
 
-Legacy per-toy JSON files are automatically migrated into `toys.json` on first load and removed.
+Legacy `~/.pi/agent/toys.json` and older per-toy JSON files are automatically migrated into `cache/pi-powertoys/toys.json` on first load and removed.
 
-Run the relevant `/command` to change any setting via TUI picker, or edit `toys.json` directly.
+Run the relevant `/command` to change any setting via TUI picker, or edit `cache/pi-powertoys/toys.json` directly.
 
 ### Kitty attention notifications
 

@@ -14,7 +14,7 @@
  *   /working-style       Pick or set message style: static, dynamic, ai
  *   /working-indicator   Pick or set indicator spinner style
  *
- * Settings persist in ~/.pi/agent/toys.json under the "contextualWorking" key.
+ * Settings persist in ~/.pi/agent/cache/pi-powertoys/toys.json under the "contextualWorking" key.
  */
 
 import type {

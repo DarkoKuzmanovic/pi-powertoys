@@ -8,7 +8,7 @@
  * Commands:
  *   /compact-model — show current model, pick a new one, or disable
  *
- * Config stored in ~/.pi/agent/toys.json under the "compactModel" key.
+ * Config stored in ~/.pi/agent/cache/pi-powertoys/toys.json under the "compactModel" key.
  */
 
 import { loadToyConfig, saveToyConfig, removeToyConfig } from "./toys-config.ts";

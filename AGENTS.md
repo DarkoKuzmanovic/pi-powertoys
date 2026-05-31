@@ -35,7 +35,7 @@ export default function myToy(pi: ExtensionAPI) {
 
 ### Configuration pattern
 
-Toys that need persistent config use the shared `toys-config.ts` module, which stores everything in `~/.pi/agent/toys.json` under a top-level key per toy:
+Toys that need persistent config use the shared `toys-config.ts` module, which stores everything in `~/.pi/agent/cache/pi-powertoys/toys.json` under a top-level key per toy:
 
 ```typescript
 import { loadToyConfig, saveToyConfig } from "./toys-config.ts";

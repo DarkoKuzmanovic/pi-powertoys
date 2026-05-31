@@ -1,10 +1,10 @@
 /**
  * toys-config — Shared persistence for pi-powertoys.
  *
- * All toy settings live in a single file: ~/.pi/agent/toys.json
+ * All toy settings live in a single file: ~/.pi/agent/cache/pi-powertoys/toys.json
  * Each toy owns a top-level key (e.g. "compactModel", "contextualWorking").
  *
- * On first load, legacy per-toy JSON files are migrated into toys.json
+ * On first load, legacy root/per-toy JSON files are migrated into toys.json
  * and the old files are removed.
  */
 
@@ -12,13 +12,14 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from "
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "toys.json");
+const CONFIG_PATH = join(homedir(), ".pi", "agent", "cache", "pi-powertoys", "toys.json");
 
 // ── Legacy paths (for one-time migration) ──────────────────────
 
 const LEGACY: Record<string, string> = {
 	compactModel: join(homedir(), ".pi", "agent", "compact-model.json"),
-};
+	};
+const LEGACY_TOYS_PATH = join(homedir(), ".pi", "agent", "toys.json");
 
 // ── Read / write ────────────────────────────────────────────────
 
@@ -77,9 +78,28 @@ function migrateLegacy(): void {
 	migrated = true;
 
 	const config = loadAll();
+	let changed = false;
+
+	if (existsSync(LEGACY_TOYS_PATH)) {
+		try {
+			const raw = JSON.parse(readFileSync(LEGACY_TOYS_PATH, "utf-8"));
+			if (raw && typeof raw === "object") {
+				for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+					if (config[key] === undefined) {
+						config[key] = value;
+						changed = true;
+					}
+				}
+			}
+		} catch { /* corrupt legacy root config — skip */ }
+
+		try {
+			unlinkSync(LEGACY_TOYS_PATH);
+		} catch { /* can't delete — not critical */ }
+	}
 
 	for (const [key, legacyPath] of Object.entries(LEGACY)) {
-		// Skip if already migrated (key exists in toys.json)
+		// Skip if already migrated (key exists in cache/pi-powertoys/toys.json)
 		if (config[key] !== undefined) continue;
 		// Skip if legacy file doesn't exist
 		if (!existsSync(legacyPath)) continue;
@@ -88,6 +108,7 @@ function migrateLegacy(): void {
 			const raw = JSON.parse(readFileSync(legacyPath, "utf-8"));
 			if (raw && typeof raw === "object") {
 				config[key] = raw;
+				changed = true;
 			}
 		} catch { /* corrupt legacy file — skip */ }
 
@@ -97,8 +118,5 @@ function migrateLegacy(): void {
 		} catch { /* can't delete — not critical */ }
 	}
 
-	// Only write if we actually migrated something
-	if (Object.keys(config).length > 0) {
-		saveAll(config);
-	}
+	if (changed) saveAll(config);
 }

@@ -10,6 +10,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { findLastCustomEntry } from "./toy-kit.ts";
 
 const COLORS: Record<string, string> = {
 	red: "🔴",
@@ -36,16 +37,12 @@ function clearColor(ctx: { ui: any }) {
 export default function colorExtension(pi: ExtensionAPI) {
 	// Restore from session state on start/resume
 	pi.on("session_start", async (_event, ctx) => {
-		const entries = ctx.sessionManager.getEntries();
-		for (let i = entries.length - 1; i >= 0; i--) {
-			const entry = entries[i];
-			if (entry.type === "custom" && entry.customType === "session-color") {
-				const data = entry.data as { color?: string } | undefined;
-				if (data?.color && COLORS[data.color]) {
-					applyColor(data.color, ctx);
-				}
-				break;
-			}
+		const data = findLastCustomEntry<{ color?: string }>(
+			ctx.sessionManager.getEntries(),
+			"session-color",
+		);
+		if (data?.color && COLORS[data.color]) {
+			applyColor(data.color, ctx);
 		}
 	});
 

@@ -61,6 +61,7 @@ Persistent toy settings are stored in a single file: `~/.pi/agent/cache/pi-power
 | Key | Toy | Example value |
 | --- | --- | --- |
 | `compactModel` | compact-model | `{ "provider": "wafer", "model": "Qwen3.5-397B-A17B" }` |
+| `circuitBreaker` | circuit-breaker | `{ "maxCompactions": 3, "windowMinutes": 5, "enabled": true }` |
 | `contextualWorking` | contextual-working | `{ "messageStyle": "dynamic", "indicator": "braille" }` |
 | `kittyAttention` | kitty-attention | `{ "enabled": true, "popup": true, "bell": true, "notifyOnDone": true }` |
 

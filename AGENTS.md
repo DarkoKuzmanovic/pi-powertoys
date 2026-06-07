@@ -53,6 +53,21 @@ function saveConfig(value: MyConfig): void {
 
 Legacy per-toy JSON files are auto-migrated on first load. Always handle missing/corrupt data gracefully.
 
+### Shared helpers (`toy-kit.ts`)
+
+Stateless, dependency-free helpers shared across toys. `toy-kit.ts` imports nothing and registers nothing — import only what you need:
+
+```typescript
+import { textFromContent, contentWithText, findLastCustomEntry, withStatusChip } from "./toy-kit.ts";
+```
+
+- **`textFromContent(content)`** — normalize a tool-result `content` (string or text-block array) into a plain string.
+- **`contentWithText(text)`** — wrap a string back into the `[{ type: "text", text }]` content shape.
+- **`findLastCustomEntry<T>(entries, customType)`** — return the `data` of the most recent `custom` session entry of a given `customType` (for restore-on-`session_start`).
+- **`withStatusChip(ctx, key, fn)`** — run `fn` with a status chip whose lifecycle is guaranteed: the chip is always cleared in a `finally`, even if `fn` throws.
+
+A helper earns a place in `toy-kit.ts` only when two or more toys already hold a byte-identical copy. No speculative helpers — and do not route typed/bespoke logic through these (e.g. typed `pi-ai` response extraction stays inline).
+
 ## Current toys
 
 | File | Slash command | Purpose |
@@ -79,7 +94,7 @@ Archived toys live under `archive/toys/` and are not loaded by the local `settin
 ## Conventions
 
 - **One file = one toy.** No multi-file extensions. Keep dependencies to Node built-ins and Pi packages.
-- **Minimal cross-toy imports.** `toys-config.ts` is the only shared module — for persistence. All other toys remain self-contained.
+- **Minimal cross-toy imports.** `toys-config.ts` (persistence) and `toy-kit.ts` (stateless helpers) are the **only** two shared modules. Every other toy stays self-contained. A helper earns a place in `toy-kit.ts` only when it is duplicated verbatim across two or more toys.
 - **Graceful defaults.** Config files are optional; toys work out of the box with sensible defaults.
 - **TUI for config.** Use `ctx.ui.select()` / `ctx.ui.input()` for configuration, not manual file editing.
 - **Pi packages only.** Only `node:*` built-ins and `@earendil-works/*` packages (`pi-coding-agent`, `pi-ai`, `pi-tui`). No third-party dependencies.

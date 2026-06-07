@@ -13,23 +13,12 @@ import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { textFromContent, contentWithText } from "./toy-kit.ts";
 
 const EXTENSIONS_DIR = join(homedir(), ".pi", "agent", "extensions");
 const PROVIDER_NOTICE_COOLDOWN_MS = 60_000;
 const EDIT_MISMATCH_MARKER = "[session-guard] Fresh anchor hints:";
 
-function textFromContent(content: unknown): string {
-	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	return content
-		.filter((part: any) => part?.type === "text")
-		.map((part: any) => String(part.text ?? ""))
-		.join("\n");
-}
-
-function contentWithText(text: string): { type: "text"; text: string }[] {
-	return [{ type: "text", text }];
-}
 
 function findGitRoot(startDir: string): string | undefined {
 	let dir = resolve(startDir);

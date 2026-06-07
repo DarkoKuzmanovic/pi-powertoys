@@ -21,6 +21,7 @@
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { findLastCustomEntry } from "./toy-kit.ts";
 import {
 	type Component,
 	Editor,
@@ -74,14 +75,7 @@ function wordCount(text: string): number {
 // ── State helpers ─────────────────────────────────────────────
 
 function loadFromSession(ctx: ExtensionContext): Snippet[] {
-	const entries = ctx.sessionManager.getEntries();
-	for (let i = entries.length - 1; i >= 0; i--) {
-		const e = entries[i] as { type?: string; customType?: string; data?: { snippets?: Snippet[] } };
-		if (e.type === "custom" && e.customType === ENTRY_TYPE) {
-			return e.data?.snippets ?? [];
-		}
-	}
-	return [];
+	return findLastCustomEntry<{ snippets?: Snippet[] }>(ctx.sessionManager.getEntries(), ENTRY_TYPE)?.snippets ?? [];
 }
 
 function persist(pi: ExtensionAPI): void {

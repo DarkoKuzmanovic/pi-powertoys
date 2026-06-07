@@ -7,12 +7,10 @@
  * /circuit-breaker — configure max compactions, window, and toggle.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "circuit-breaker.json");
+const TOY_KEY = "circuitBreaker";
 
 interface Config {
 	maxCompactions: number;
@@ -21,22 +19,16 @@ interface Config {
 }
 
 function loadConfig(): Config {
-	try {
-		if (!existsSync(CONFIG_PATH)) return { maxCompactions: 3, windowMinutes: 5, enabled: true };
-		const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-		return {
-			maxCompactions: raw?.maxCompactions ?? 3,
-			windowMinutes: raw?.windowMinutes ?? 5,
-			enabled: raw?.enabled ?? true,
-		};
-	} catch {
-		return { maxCompactions: 3, windowMinutes: 5, enabled: true };
-	}
+	const raw = loadToyConfig<Partial<Config>>(TOY_KEY);
+	return {
+		maxCompactions: raw?.maxCompactions ?? 3,
+		windowMinutes: raw?.windowMinutes ?? 5,
+		enabled: raw?.enabled ?? true,
+	};
 }
 
 function saveConfig(config: Config): void {
-	mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-	writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+	saveToyConfig(TOY_KEY, config);
 }
 
 export default function circuitBreaker(pi: ExtensionAPI) {

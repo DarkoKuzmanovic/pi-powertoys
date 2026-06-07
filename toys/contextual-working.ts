@@ -23,8 +23,9 @@ import type {
   WorkingIndicatorOptions,
 } from "@earendil-works/pi-coding-agent";
 import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, unlinkSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 
 // ─── Configuration ───────────────────────────────────────────────
 
@@ -36,8 +37,8 @@ const PRIMARY_API_BASE = "https://opencode.ai/zen/go/v1/chat/completions";
 const FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const FALLBACK_API_BASE =
   "https://generativelanguage.googleapis.com/v1beta/models";
-const CACHE_PATH =
-  dirname(new URL(import.meta.url).pathname) + "/contextual-working-cache.json";
+const CACHE_DIR = join(homedir(), ".pi", "agent", "cache", "pi-powertoys");
+const CACHE_PATH = join(CACHE_DIR, "contextual-working-cache.json");
 const RATE_LIMIT_RPM = 5;
 const RATE_WINDOW_MS = 60_000;
 
@@ -544,7 +545,26 @@ interface MessageCache {
   lastUpdated: number;
 }
 
+let legacyCacheMigrated = false;
+
+/** One-time best-effort move of the old source-tree cache to the stable cache dir. */
+function migrateLegacyCache(): void {
+  if (legacyCacheMigrated) return;
+  legacyCacheMigrated = true;
+  try {
+    if (existsSync(CACHE_PATH)) return;
+    const legacyPath = join(dirname(new URL(import.meta.url).pathname), "contextual-working-cache.json");
+    if (!existsSync(legacyPath)) return;
+    mkdirSync(CACHE_DIR, { recursive: true });
+    copyFileSync(legacyPath, CACHE_PATH);
+    unlinkSync(legacyPath);
+  } catch {
+    /* best-effort migration — fall back to a fresh cache */
+  }
+}
+
 function loadCache(): MessageCache {
+  migrateLegacyCache();
   try {
     const raw = readFileSync(CACHE_PATH, "utf-8");
     const data = JSON.parse(raw) as MessageCache;

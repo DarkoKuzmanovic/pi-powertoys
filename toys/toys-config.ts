@@ -18,7 +18,8 @@ const CONFIG_PATH = join(homedir(), ".pi", "agent", "cache", "pi-powertoys", "to
 
 const LEGACY: Record<string, string> = {
 	compactModel: join(homedir(), ".pi", "agent", "compact-model.json"),
-	};
+	circuitBreaker: join(homedir(), ".pi", "agent", "circuit-breaker.json"),
+};
 const LEGACY_TOYS_PATH = join(homedir(), ".pi", "agent", "toys.json");
 
 // ── Read / write ────────────────────────────────────────────────

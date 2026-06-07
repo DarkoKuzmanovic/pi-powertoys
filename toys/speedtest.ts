@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { withStatusChip } from "./toy-kit.ts";
 
 // --- Config ---
 const TEST_PROMPT = "Write a short paragraph (3-4 sentences) about the history of the printing press and its impact on society.";
@@ -41,29 +42,30 @@ export default function speedTestExtension(pi: ExtensionAPI) {
 
 			const authResult = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 			if (!authResult.ok) {
-				ctx.ui.setStatus("speedtest", undefined);
 				ctx.ui.notify(`Auth error for ${model.provider}: ${authResult.error}`, "error");
 				return;
 			}
 
-			// Warm-up request (discarded — warms connection, avoids cold-start)
-			ctx.ui.setStatus("speedtest", `⏱ Warming up...`);
-			await runSpeedTest(model, authResult.apiKey, authResult.headers, WARMUP_PROMPT, WARMUP_MAX_TOKENS);
-
-			// Measurement runs
+			// Measurement runs — chip is cleared in finally even if a request throws.
 			const runs: SpeedTestResult[] = [];
-			for (let i = 0; i < numRuns; i++) {
-				ctx.ui.setStatus("speedtest", `⏱ Run ${i + 1}/${numRuns}...`);
-				const result = await runSpeedTest(model, authResult.apiKey, authResult.headers, TEST_PROMPT, MAX_TOKENS);
-				if (result.error) {
-					ctx.ui.setStatus("speedtest", undefined);
-					ctx.ui.notify(`Speedtest failed on run ${i + 1}: ${result.error}`, "error");
-					return;
-				}
-				runs.push(result);
-			}
+			let failed = false;
+			await withStatusChip(ctx, "speedtest", async () => {
+				// Warm-up request (discarded — warms connection, avoids cold-start)
+				ctx.ui.setStatus("speedtest", `⏱ Warming up...`);
+				await runSpeedTest(model, authResult.apiKey, authResult.headers, WARMUP_PROMPT, WARMUP_MAX_TOKENS);
 
-			ctx.ui.setStatus("speedtest", undefined);
+				for (let i = 0; i < numRuns; i++) {
+					ctx.ui.setStatus("speedtest", `⏱ Run ${i + 1}/${numRuns}...`);
+					const result = await runSpeedTest(model, authResult.apiKey, authResult.headers, TEST_PROMPT, MAX_TOKENS);
+					if (result.error) {
+						ctx.ui.notify(`Speedtest failed on run ${i + 1}: ${result.error}`, "error");
+						failed = true;
+						return;
+					}
+					runs.push(result);
+				}
+			});
+			if (failed) return;
 
 			// Compute results
 			const medianTtft = median(runs.map((r) => r.ttftMs));

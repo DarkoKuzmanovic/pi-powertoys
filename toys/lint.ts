@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { withStatusChip } from "./toy-kit.ts";
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -104,41 +105,40 @@ export default function lintExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			ctx.ui.setStatus("lint", `🔍 ${target.tool} → linting...`);
+			await withStatusChip(ctx, "lint", async () => {
+				ctx.ui.setStatus("lint", `🔍 ${target.tool} → linting...`);
+				try {
+					const output = execSync(target.cmd, {
+						cwd: target.cwd,
+						timeout: TIMEOUT_MS,
+						encoding: "utf-8",
+						stdio: ["pipe", "pipe", "pipe"],
+					});
+					ctx.ui.notify(`✅ ${target.tool}: no issues found`, "info");
+					if (output.trim()) ctx.ui.notify(output.trim().slice(0, 1000), "info");
+				} catch (err: unknown) {
+					const e = err as { stdout?: string; stderr?: string; status?: number };
+					const out = [e.stdout, e.stderr].filter(Boolean).join("\n").trim();
 
-			try {
-				const output = execSync(target.cmd, {
-					cwd: target.cwd,
-					timeout: TIMEOUT_MS,
-					encoding: "utf-8",
-					stdio: ["pipe", "pipe", "pipe"],
-				});
-				ctx.ui.setStatus("lint", undefined);
-				ctx.ui.notify(`✅ ${target.tool}: no issues found`, "info");
-				if (output.trim()) ctx.ui.notify(output.trim().slice(0, 1000), "info");
-			} catch (err: unknown) {
-				ctx.ui.setStatus("lint", undefined);
-				const e = err as { stdout?: string; stderr?: string; status?: number };
-				const out = [e.stdout, e.stderr].filter(Boolean).join("\n").trim();
+					if (target.tool === "biome" && e.status === 1) {
+						const { errors, warnings } = parseBiomeResult(out);
+						ctx.ui.notify(
+							`⚠️ biome: ${errors} errors, ${warnings} warnings`,
+							errors !== "0" ? "error" : "warning",
+						);
+					} else if (target.tool === "ruff" && e.status === 1) {
+						const { errors, fixable } = parseRuffResult(out);
+						ctx.ui.notify(
+							`⚠️ ruff: ${errors} issues (${fixable} fixable with --fix)`,
+							"warning",
+						);
+					} else {
+						ctx.ui.notify(`${target.tool} failed (exit ${e.status})`, "error");
+					}
 
-				if (target.tool === "biome" && e.status === 1) {
-					const { errors, warnings } = parseBiomeResult(out);
-					ctx.ui.notify(
-						`⚠️ biome: ${errors} errors, ${warnings} warnings`,
-						errors !== "0" ? "error" : "warning",
-					);
-				} else if (target.tool === "ruff" && e.status === 1) {
-					const { errors, fixable } = parseRuffResult(out);
-					ctx.ui.notify(
-						`⚠️ ruff: ${errors} issues (${fixable} fixable with --fix)`,
-						"warning",
-					);
-				} else {
-					ctx.ui.notify(`${target.tool} failed (exit ${e.status})`, "error");
+					if (out) ctx.ui.notify(out.slice(0, 1000), e.status === 1 ? "warning" : "error");
 				}
-
-				if (out) ctx.ui.notify(out.slice(0, 1000), e.status === 1 ? "warning" : "error");
-			}
+			});
 		},
 	});
 }

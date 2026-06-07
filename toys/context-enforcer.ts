@@ -14,6 +14,8 @@
  * those should always use ctx_fetch_and_index regardless of output size.
  */
 
+import { textFromContent } from "./toy-kit.ts";
+
 // ── Configuration ───────────────────────────────────────────
 
 /** Lines of output before truncation kicks in */
@@ -84,17 +86,7 @@ export default function contextModeEnforcer(pi: any) {
       const content = event?.content;
       if (!content) return;
 
-      let text: string;
-      if (typeof content === "string") {
-        text = content;
-      } else if (Array.isArray(content)) {
-        text = content
-          .filter((c: any) => c?.type === "text")
-          .map((c: any) => c.text ?? "")
-          .join("\n");
-      } else {
-        return;
-      }
+      const text = textFromContent(content);
 
       const lines = text.split("\n");
       const charCount = text.length;

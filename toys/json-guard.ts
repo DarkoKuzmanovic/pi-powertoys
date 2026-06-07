@@ -10,21 +10,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { textFromContent, contentWithText } from "./toy-kit.ts";
 
 const TAG = "[json-guard]";
 
-function textFromContent(content: unknown): string {
-	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	return content
-		.filter((part: any) => part?.type === "text")
-		.map((part: any) => String(part.text ?? ""))
-		.join("\n");
-}
-
-function contentWithText(text: string) {
-	return [{ type: "text" as const, text }];
-}
 
 function extractPath(input: unknown): string | undefined {
 	if (!input || typeof input !== "object") return undefined;

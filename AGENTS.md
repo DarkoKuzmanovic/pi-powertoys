@@ -88,6 +88,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | `ultrathink.ts` | `/ultrathink`, `Alt+U` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
+| `qna.ts` | `/qna` | Extracts questions from the last assistant message into the editor (Q:/A: format) for you to fill in |
 
 Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, and `session-recap.ts`.
 

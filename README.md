@@ -22,6 +22,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | **ultrathink** | `/ultrathink`, `alt+u` | Detects "ultrathink" as you type and toggles a status flag; pi-hud renders it as a rainbow chip. |
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python projects via Ruff. Use cautiously with `--fix` because it mutates files. |
+| **qna** | `/qna` | Extracts questions from the last assistant message and loads them into the editor in Q:/A: format for you to answer. |
 
 ## Archived toys
 

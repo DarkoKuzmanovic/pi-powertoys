@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, context meter, color tags, circuit breaker, contextual working messages, intent tracer, JSON guard, agent steering, system-prompt snippets, context viewer, ultrathink status chip, Kitty attention notifications, and extension linting",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context enforcer, session guard, context meter, color tags, circuit breaker, contextual working messages, intent tracer, JSON guard, agent steering, system-prompt snippets, context viewer, ultrathink status chip, Kitty attention notifications, extension linting, and Q&A extraction",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -48,7 +48,8 @@
       "./toys/context-viewer.ts",
       "./toys/ultrathink.ts",
       "./toys/kitty-attention.ts",
-      "./toys/lint.ts"
+      "./toys/lint.ts",
+      "./toys/qna.ts"
     ]
   },
   "peerDependencies": {

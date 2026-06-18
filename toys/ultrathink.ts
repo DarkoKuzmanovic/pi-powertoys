@@ -121,8 +121,8 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// Keyboard shortcut (alt+u — ctrl+u is taken by tui.editor.deleteToLineStart + app.tree.filter.userOnly)
-	pi.registerShortcut("alt+u", {
+	// Keyboard shortcut: Alt+6 toggles ultrathink
+	pi.registerShortcut("alt+6", {
 		description: "Toggle ultrathink mode",
 		handler: async (ctx) => {
 			if (isShowingRainbow && manualMode) {

@@ -31,6 +31,7 @@ import { dirname, join } from "node:path";
 
 type MessageStyle = "static" | "dynamic" | "ai";
 type IndicatorStyle = string;
+type ColorAnimation = "off" | "rainbow" | "ocean" | "aurora" | "ember" | "neon";
 
 const PRIMARY_MODEL = "deepseek-v4-flash";
 const PRIMARY_API_BASE = "https://opencode.ai/zen/go/v1/chat/completions";
@@ -119,6 +120,35 @@ const RESET_FG = "\x1b[39m";
 
 function colorize(text: string, color: string): string {
   return `${color}${text}${RESET_FG}`;
+}
+
+// ─── Color Animation Palettes ────────────────────────────────────
+
+const COLOR_PALETTES: Record<string, [number, number, number][]> = {
+  rainbow: [[255,107,129], [255,180,107], [255,247,107], [107,255,180], [107,180,255], [200,107,255]],
+  ocean: [[0,180,216], [72,202,228], [144,224,239], [0,150,199], [0,119,182], [72,202,228]],
+  aurora: [[0,255,136], [0,204,187], [0,153,219], [102,102,255], [178,102,255], [0,255,136]],
+  ember: [[255,69,0], [255,140,0], [255,200,0], [255,165,0], [255,99,71], [255,69,0]],
+  neon: [[255,0,255], [0,255,255], [255,255,0], [0,255,128], [255,0,128], [128,0,255]],
+};
+
+function renderGradientText(text: string, palette: [number, number, number][], phase: number): string {
+  if (text.length === 0) return text;
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (ch === " ") { result += ch; continue; }
+    const t = ((i / Math.max(text.length - 1, 1)) * 2 + phase) % 1;
+    const idx = t * (palette.length - 1);
+    const lo = Math.floor(idx);
+    const hi = Math.min(lo + 1, palette.length - 1);
+    const frac = idx - lo;
+    const r = Math.round(palette[lo]![0] + (palette[hi]![0] - palette[lo]![0]) * frac);
+    const g = Math.round(palette[lo]![1] + (palette[hi]![1] - palette[lo]![1]) * frac);
+    const b = Math.round(palette[lo]![2] + (palette[hi]![2] - palette[lo]![2]) * frac);
+    result += `\x1b[38;2;${r};${g};${b}m${ch}`;
+  }
+  return result + RESET_FG;
 }
 
 /** Build a short preview string from indicator frames (strip ANSI for display). */
@@ -840,6 +870,7 @@ function buildDynamicMessage(
 interface WorkingConfig {
   messageStyle: MessageStyle;
   indicator: IndicatorStyle;
+  colorAnimation?: ColorAnimation;
 }
 
 const TOY_KEY = "contextualWorking";
@@ -851,8 +882,9 @@ function loadWorkingConfig(): WorkingConfig | undefined {
 function saveWorkingConfig(
   messageStyle: MessageStyle,
   indicator: IndicatorStyle,
+  colorAnimation: ColorAnimation = "off",
 ): void {
-  saveToyConfig(TOY_KEY, { messageStyle, indicator });
+  saveToyConfig(TOY_KEY, { messageStyle, indicator, colorAnimation });
 }
 
 // ─── Main Extension ─────────────────────────────────────────────
@@ -865,6 +897,29 @@ export default function (pi: ExtensionAPI) {
   let currentIndicator: IndicatorStyle = persisted?.indicator ?? "braille";
   indicatorIndex = INDICATOR_NAMES.indexOf(currentIndicator);
   let generator: MessageGenerator | null = null;
+  let colorAnimation: ColorAnimation = persisted?.colorAnimation ?? "off";
+  let colorTimer: ReturnType<typeof setInterval> | null = null;
+  let colorPhase = 0;
+
+  function startColorAnimation(ctx: ExtensionContext) {
+    stopColorAnimation();
+    if (colorAnimation === "off") return;
+    const palette = COLOR_PALETTES[colorAnimation];
+    if (!palette) return;
+    colorPhase = 0;
+    colorTimer = setInterval(() => {
+      colorPhase = (colorPhase + 0.03) % 1;
+      const colored = renderGradientText(lastMessage, palette, colorPhase);
+      ctx.ui.setWorkingMessage(colored);
+    }, 80);
+  }
+
+  function stopColorAnimation() {
+    if (colorTimer) {
+      clearInterval(colorTimer);
+      colorTimer = null;
+    }
+  }
 
   // Initialize AI generator — OpenCode Go (primary) + Gemini (fallback)
   const opencodeGoApiKey = process.env.OPENCODE_GO_API_KEY;
@@ -938,6 +993,7 @@ export default function (pi: ExtensionAPI) {
     lastMessage = message;
     if (ctx) {
       ctx.ui.setWorkingMessage(message);
+      if (colorAnimation !== "off") startColorAnimation(ctx);
     }
   };
 
@@ -958,6 +1014,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("turn_start", async (_event, ctx) => {
     ctx.ui.setWorkingMessage(lastMessage);
+    if (colorAnimation !== "off") startColorAnimation(ctx);
   });
 
   pi.on("tool_execution_start", async (event, ctx) => {
@@ -979,6 +1036,7 @@ export default function (pi: ExtensionAPI) {
 
   // After the first turn completes, auto-name the session if unnamed
   pi.on("turn_end", async (event, ctx) => {
+    stopColorAnimation();
     if (autoNameDone || event.turnIndex > 0) return;
     // Auto-naming is purely cosmetic — skip in non-interactive runs (e.g. -p mode,
     // subagent dispatches). The handler awaits an AI call that can outlive the
@@ -1071,7 +1129,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       applyIndicator(ctx);
-      saveWorkingConfig(messageStyle, currentIndicator);
+      saveWorkingConfig(messageStyle, currentIndicator, colorAnimation);
       ctx.ui.notify(`Working style: ${messageStyle}`, "info");
     },
   });
@@ -1113,10 +1171,49 @@ export default function (pi: ExtensionAPI) {
       }
 
       applyIndicator(ctx);
-      saveWorkingConfig(messageStyle, currentIndicator);
+      saveWorkingConfig(messageStyle, currentIndicator, colorAnimation);
       const opts = INDICATORS[currentIndicator];
       const preview = frameInfo(opts);
       ctx.ui.notify(`Working indicator: ${currentIndicator}${preview}`, "info");
+    },
+  });
+
+  // ─── Color Animation Command ───────────────────────────────
+
+  const COLOR_NAMES: ColorAnimation[] = ["off", "rainbow", "ocean", "aurora", "ember", "neon"];
+
+  pi.registerCommand("working-color", {
+    description: "Pick color animation for working message.",
+    handler: async (args, ctx) => {
+      const arg = args.trim().toLowerCase();
+      if (arg && !COLOR_NAMES.includes(arg as ColorAnimation)) {
+        ctx.ui.notify(`Usage: /working-color [${COLOR_NAMES.join("|")}]`, "error");
+        return;
+      }
+      if (arg) {
+        colorAnimation = arg as ColorAnimation;
+      } else {
+        const options = COLOR_NAMES.map((name) => {
+          const marker = name === colorAnimation ? " ✓" : "";
+          const desc = name === "off"
+            ? "No color animation"
+            : `${name.charAt(0).toUpperCase() + name.slice(1)} gradient wave`;
+          return `${name} — ${desc}${marker}`;
+        });
+        const choice = await ctx.ui.select("Working Color Animation", options);
+        if (choice === undefined) return;
+        const picked = choice.split(" — ")[0]!.trim() as ColorAnimation;
+        if (COLOR_NAMES.includes(picked)) {
+          colorAnimation = picked;
+        }
+      }
+      saveWorkingConfig(messageStyle, currentIndicator, colorAnimation);
+      if (colorAnimation === "off") {
+        stopColorAnimation();
+        ctx.ui.setWorkingMessage(lastMessage);
+      }
+      applyIndicator(ctx);
+      ctx.ui.notify(`Working color: ${colorAnimation}`, "info");
     },
   });
 }

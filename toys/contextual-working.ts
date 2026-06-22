@@ -31,7 +31,7 @@ import { dirname, join } from "node:path";
 
 type MessageStyle = "static" | "dynamic" | "ai";
 type IndicatorStyle = string;
-type ColorAnimation = "off" | "rainbow" | "ocean" | "aurora" | "ember" | "neon";
+type ColorAnimation = "off" | "rainbow" | "ocean" | "aurora" | "ember" | "neon" | "mist" | "dusk" | "sage" | "smoke";
 
 const PRIMARY_MODEL = "deepseek-v4-flash";
 const PRIMARY_API_BASE = "https://opencode.ai/zen/go/v1/chat/completions";
@@ -130,6 +130,11 @@ const COLOR_PALETTES: Record<string, [number, number, number][]> = {
   aurora: [[0,255,136], [0,204,187], [0,153,219], [102,102,255], [178,102,255], [0,255,136]],
   ember: [[255,69,0], [255,140,0], [255,200,0], [255,165,0], [255,99,71], [255,69,0]],
   neon: [[255,0,255], [0,255,255], [255,255,0], [0,255,128], [255,0,128], [128,0,255]],
+  // ponytail: subtle gradients — calmer than neon/ember, more presence than v1
+  mist: [[120,140,200], [150,150,210], [180,150,205], [160,165,205], [120,175,195], [120,140,200]],
+  dusk: [[90,150,210], [140,130,215], [190,120,200], [210,130,170], [150,150,205], [90,150,210]],
+  sage: [[90,180,180], [120,195,160], [160,200,150], [140,185,175], [110,175,195], [90,180,180]],
+  smoke: [[255,255,255], [215,215,215], [175,175,175], [140,140,140], [200,200,200], [255,255,255]],
 };
 
 function renderGradientText(text: string, palette: [number, number, number][], phase: number): string {
@@ -1180,7 +1185,7 @@ export default function (pi: ExtensionAPI) {
 
   // ─── Color Animation Command ───────────────────────────────
 
-  const COLOR_NAMES: ColorAnimation[] = ["off", "rainbow", "ocean", "aurora", "ember", "neon"];
+  const COLOR_NAMES: ColorAnimation[] = ["off", "rainbow", "ocean", "aurora", "ember", "neon", "mist", "dusk", "sage", "smoke"];
 
   pi.registerCommand("working-color", {
     description: "Pick color animation for working message.",

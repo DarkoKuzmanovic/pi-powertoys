@@ -11,7 +11,7 @@ const SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
 	{ key: "Alt+5", description: "Toggle Pixoo display" },
 	{ key: "Alt+6", description: "Toggle Ultrathink" },
-	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full)" },
+	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full→ultracode)" },
 	{ key: "Alt+9", description: "Cycle Ponytail (off→lite→full→ultra)" },
 	{ key: "Ctrl+`", description: "gitui overlay (Kitty)" },
 	{ key: "Ctrl+P", description: "Cycle scoped models" },

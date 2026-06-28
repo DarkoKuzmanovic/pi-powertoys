@@ -47,8 +47,14 @@ export default function speedTestExtension(pi: ExtensionAPI) {
 			}
 
 			// Measurement runs — chip is cleared in finally even if a request throws.
-			const runs: SpeedTestResult[] = [];
-			let failed = false;
+		const runs: SpeedTestResult[] = [];
+		let failed = false;
+		let aborted = false;
+		// The streaming fetches below can outlive the session: if the user runs
+		// /reload, /new, switches sessions, or forks mid-test, Pi invalidates this
+		// ctx and every ctx.* access throws. Treat that as a silent abort rather
+		// than a crashed extension; the session it reported to is already gone.
+		try {
 			await withStatusChip(ctx, "speedtest", async () => {
 				// Warm-up request (discarded — warms connection, avoids cold-start)
 				ctx.ui.setStatus("speedtest", `⏱ Warming up...`);
@@ -65,7 +71,11 @@ export default function speedTestExtension(pi: ExtensionAPI) {
 					runs.push(result);
 				}
 			});
-			if (failed) return;
+		} catch (e) {
+			if (!isStaleCtxError(e)) throw e;
+			aborted = true;
+		}
+		if (failed || aborted) return;
 
 			// Compute results
 			const medianTtft = median(runs.map((r) => r.ttftMs));
@@ -97,7 +107,11 @@ export default function speedTestExtension(pi: ExtensionAPI) {
 				}
 			}
 
+		try {
 			ctx.ui.notify(lines.join("\n"), "info");
+		} catch (e) {
+			if (!isStaleCtxError(e)) throw e;
+		}
 		},
 	});
 }
@@ -107,6 +121,11 @@ function median(values: number[]): number {
 	const sorted = [...values].sort((a, b) => a - b);
 	const mid = Math.floor(sorted.length / 2);
 	return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+/** True when e is Pi's "stale ctx" guard firing - session replaced/reloaded mid-run. */
+function isStaleCtxError(e: unknown): boolean {
+	return e instanceof Error && /stale after session replacement/.test(e.message);
 }
 
 /** Count tokens from actual content text. ~1.3 tokens/word for English. */

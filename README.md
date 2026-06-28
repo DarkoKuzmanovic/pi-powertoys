@@ -7,7 +7,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | Toy | Command | What it does |
 | --- | --- | --- |
 | **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows. |
-| **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, and OpenAI responses APIs. |
+| **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs. |
 | **context-enforcer** | — | Truncates large bash output and hard-blocks raw HTTP clients (`curl`, `wget`) in favor of context-mode tools. |
 | **session-guard** | — | Adds safety/coaching hooks from real session failures: broken extension symlink warnings, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices. |
 | **context** | `/context` | Shows current context usage — token count, context window, percentage, and a visual progress bar. Warns when nearing the limit. |

@@ -73,7 +73,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | File | Slash command | Purpose |
 | --- | --- | --- |
 | `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
-| `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, and OpenAI responses APIs |
+| `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs |
 | `context-enforcer.ts` | — | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients |
 | `session-guard.ts` | — | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
 | `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |

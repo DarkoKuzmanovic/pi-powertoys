@@ -74,23 +74,19 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | --- | --- | --- |
 | `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
 | `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs |
-| `context-enforcer.ts` | — | Truncates large output (multi-line and single-line blobs), blocks raw HTTP clients |
-| `session-guard.ts` | — | Adds safety/coaching hooks for broken extension symlinks, bash cwd/git/rm preflights, benign bash error reclassification, edit anchor mismatch hints, and provider error notices |
 | `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |
-| `color.ts` | `/color` | Tags sessions with a color label in the footer |
-| `circuit-breaker.ts` | `/circuit-breaker` | Stops compaction thrash loops (N compactions in M minutes) |
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
 | `intent-tracer.ts` | — | Injects `_i` intent field into tool schemas for better tool-call transparency |
-| `json-guard.ts` | — | Post-edit JSON syntax validation — warns model immediately if write breaks JSON |
 | `agent-steer.ts` | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt |
-| `sys-prompt.ts` | `/sys-prompt` | Session-scoped system-prompt snippet manager — appends fenced additions to every turn, persists across `/reload`, fork-aware |
 | `context-viewer.ts` | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy |
 | `ultrathink.ts` | `/ultrathink`, `Alt+U` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
-| `qna.ts` | `/qna` | Extracts questions from the last assistant message into the editor (Q:/A: format) for you to fill in |
+| `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Shows a floating cheat sheet of local shortcuts and useful slash commands |
 
 Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, and `session-recap.ts`.
+
+Moved safety hooks (`context-enforcer.ts`, `session-guard.ts`, `circuit-breaker.ts`, `json-guard.ts`) are owned by `../pi-guardian`. Previously disabled local toys have been removed; restore them from git history only if deliberately reintroduced and added back to both manifests.
 
 ## Conventions
 

@@ -126,4 +126,5 @@ This project has a CodeGraph index (`.codegraph/`). Prefer these tools over grep
 - **Per-toy file:** `toys/spinners.json` — defines spinner frames + intervalMs.
 - **Format:** `{ "spinnerName": { "frames": [...], "intervalMs": N } }`
 - **Custom spinners:** Edit the JSON, add any entry. No code changes needed.
-- **Fallback:** `contextual-working.ts` has a hardcoded `FALLBACK_INDICATORS` map in case the JSON is missing/corrupt.
+- **Fallback:** `contextual-working.ts` has a hardcoded `FALLBACK_INDICATORS` map in case the JSON is missing/corrupt. It's a smaller, independent safety-net set — not kept in sync 1:1 with `spinners.json`.
+- **Picker/HUD display:** `/working-indicator` and the pi-hud status chip show the spinner *name* only (e.g. `braille`), not an ASCII frame preview — keeps the picker compact and the HUD non-distracting.

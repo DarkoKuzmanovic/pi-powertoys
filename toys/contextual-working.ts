@@ -156,21 +156,6 @@ function renderGradientText(text: string, palette: [number, number, number][], p
   return result + RESET_FG;
 }
 
-/** Build a short preview string from indicator frames (strip ANSI for display). */
-function framesPreview(frames: string[]): string {
-  const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
-  const stripped = frames.map(stripAnsi);
-  // Show up to 4 frames joined, ellipsis if more
-  const preview = stripped.slice(0, 4).join("");
-  return stripped.length > 4 ? `${preview}…` : preview;
-}
-
-/** Render a frame preview suffix, safely handling optional/empty frames. */
-function frameInfo(opts: WorkingIndicatorOptions): string {
-  const frames = opts.frames ?? [];
-  return frames.length > 0 ? ` ${framesPreview(frames)}` : "";
-}
-
 // ─── Spinner Loader (JSON-backed) ──────────────────────────────
 
 interface SpinnerDef {
@@ -947,10 +932,9 @@ export default function (pi: ExtensionAPI) {
   const applyIndicator = (ctx: ExtensionContext) => {
     const opts = INDICATORS[currentIndicator];
     ctx.ui.setWorkingIndicator(opts);
-    const preview = frameInfo(opts);
     ctx.ui.setStatus(
       "contextual-working",
-      `\udb81\udff6 ${[preview.trim() ? ctx.ui.theme.fg("accent", preview.trim()) : "", ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
+      `\udb81\udff6 ${[ctx.ui.theme.fg("accent", currentIndicator), ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
     );
   };
 
@@ -1157,18 +1141,14 @@ export default function (pi: ExtensionAPI) {
         indicatorIndex = INDICATOR_NAMES.indexOf(currentIndicator);
       } else {
         const options = INDICATOR_NAMES.map((name) => {
-          const opts = INDICATORS[name];
-          const preview = frameInfo(opts);
           const marker = name === currentIndicator ? " ✓" : "";
-          return `${name}${preview}${marker}`;
+          return `${name}${marker}`;
         });
         const choice = await ctx.ui.select("Working Indicator", options);
         if (choice === undefined) return; // cancelled
 
-        // Strip the ✓ marker and preview to get the name
-        const picked = choice
-          .replace(/ ✓$/, "")
-          .split(" ")[0]! as IndicatorStyle;
+        // Strip the ✓ marker to get the name
+        const picked = choice.replace(/ ✓$/, "") as IndicatorStyle;
         if (picked in INDICATORS) {
           currentIndicator = picked;
           indicatorIndex = INDICATOR_NAMES.indexOf(currentIndicator);
@@ -1177,9 +1157,7 @@ export default function (pi: ExtensionAPI) {
 
       applyIndicator(ctx);
       saveWorkingConfig(messageStyle, currentIndicator, colorAnimation);
-      const opts = INDICATORS[currentIndicator];
-      const preview = frameInfo(opts);
-      ctx.ui.notify(`Working indicator: ${currentIndicator}${preview}`, "info");
+      ctx.ui.notify(`Working indicator: ${currentIndicator}`, "info");
     },
   });
 

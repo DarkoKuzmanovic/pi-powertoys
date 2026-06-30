@@ -312,6 +312,7 @@ async function executeStreamTest(
 	let reportedTokens = 0;
 	let fullContent = "";
 	let chunkCount = 0;
+	let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -335,7 +336,7 @@ async function executeStreamTest(
 			return result;
 		}
 
-		const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+		reader = (response.body as ReadableStream<Uint8Array>).getReader();
 		const decoder = new TextDecoder();
 		let buffer = "";
 
@@ -399,6 +400,18 @@ async function executeStreamTest(
 		}
 	} finally {
 		clearTimeout(timeout);
+		// Explicitly release the reader's lock so a timeout/abort mid-stream
+		// can't leave undici's underlying socket half-consumed (the trigger for
+		// "internal client error while terminating a mid-stream response" —
+		// pi itself patched this class of crash in its own client in 0.80.3,
+		// but speedtest's raw fetch() doesn't inherit that fix).
+		if (reader) {
+			try {
+				await reader.cancel();
+			} catch {
+				// Best-effort teardown — stream may already be closed/errored.
+			}
+		}
 	}
 
 	return result;
@@ -456,6 +469,7 @@ async function runOpenAICodexResponsesTest(
 	let reportedTokens = 0;
 	let fullContent = "";
 	let chunkCount = 0;
+	let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -479,7 +493,7 @@ async function runOpenAICodexResponsesTest(
 			return result;
 		}
 
-		const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+		reader = (response.body as ReadableStream<Uint8Array>).getReader();
 		const decoder = new TextDecoder();
 		let buffer = "";
 
@@ -557,6 +571,14 @@ async function runOpenAICodexResponsesTest(
 		}
 	} finally {
 		clearTimeout(timeout);
+		// See executeStreamTest's matching finally block for why this matters.
+		if (reader) {
+			try {
+				await reader.cancel();
+			} catch {
+				// Best-effort teardown — stream may already be closed/errored.
+			}
+		}
 	}
 
 	return result;

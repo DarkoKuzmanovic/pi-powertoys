@@ -17,6 +17,7 @@ const SHORTCUTS: Entry[] = [
 	{ key: "Ctrl+P", description: "Cycle scoped models" },
 	{ key: "Shift+Tab", description: "Cycle thinking level" },
 	{ key: "Ctrl+L", description: "Open model selector" },
+	{ key: "Ctrl+G", description: "Open editor text in external editor" },
 	{ key: "Esc", description: "Interrupt agent mid-turn" },
 ];
 

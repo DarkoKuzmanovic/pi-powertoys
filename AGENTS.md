@@ -74,12 +74,12 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | --- | --- | --- |
 | `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
 | `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs |
-| `context.ts` | `/context` | Shows token usage, context window %, and visual progress bar |
+| `context.ts` | `/context` | Shows a 10×10 dot-grid breakdown of context usage by category, turn/tool-call/compaction stats, and cumulative reasoning-token count when reported |
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
 | `intent-tracer.ts` | — | Injects `_i` intent field into tool schemas for better tool-call transparency |
 | `agent-steer.ts` | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt |
 | `context-viewer.ts` | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy |
-| `ultrathink.ts` | `/ultrathink`, `Alt+U` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
+| `ultrathink.ts` | `/ultrathink`, `Alt+6` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
 | `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Shows a floating cheat sheet of local shortcuts and useful slash commands |
@@ -106,7 +106,7 @@ Check `~/.pi/agent/model-prompts/` for model-specific delegation and workflow gu
 
 ## CodeGraph
 
-This project has a CodeGraph index (`.codegraph/`). Prefer these tools over grep/find when exploring code structure:
+This project does **not** ship a committed CodeGraph index — `.codegraph/` is gitignored and opt-in per checkout (run `codegraph init` to build one locally). If one exists on your machine, prefer these tools over grep/find when exploring code structure; otherwise fall back to Read/Grep/Glob:
 
 | Task                       | Tool                | Why                                      |
 | -------------------------- | ------------------- | ---------------------------------------- |

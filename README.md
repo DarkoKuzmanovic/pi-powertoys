@@ -8,12 +8,12 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | --- | --- | --- |
 | **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows. |
 | **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs. |
-| **context** | `/context` | Shows current context usage — token count, context window, percentage, and a visual progress bar. Warns when nearing the limit. |
+| **context** | `/context` | Shows a 10×10 dot-grid breakdown of context usage by category (system prompt, user, assistant, tool results, free space), turn/tool-call/compaction stats, and cumulative reasoning-token count when the model reports thinking tokens. |
 | **contextual-working** | `/working-style`, `/working-indicator` | Replaces generic "Working..." with context-aware messages based on the active tool. Interactive TUI pickers for style and spinner. Persists across restarts. |
 | **intent-tracer** | — | Injects `_i` intent fields into tool schemas so the model declares what it is trying to accomplish before each tool call. Requires the post-install patch below. |
 | **agent-steer** | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt. `/steer <text>` bypasses the prompt and injects directly. |
 | **context-viewer** | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of the full system prompt or entire LLM context. Live `/` search, `n`/`N` navigation, `y` clipboard copy. |
-| **ultrathink** | `/ultrathink`, `alt+u` | Detects "ultrathink" as you type and toggles a status flag; pi-hud renders it as a rainbow chip. |
+| **ultrathink** | `/ultrathink`, `alt+6` | Detects "ultrathink" as you type and toggles a status flag; pi-hud renders it as a rainbow chip. |
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python via Ruff. Use cautiously with `--fix` because it mutates files. |
 | **shortcut-help** | `/shortcuts`, `alt+1` | Shows a floating cheat sheet of local shortcuts and useful slash commands. |

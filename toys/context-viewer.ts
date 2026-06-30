@@ -97,6 +97,8 @@ function formatUsage(usage: any): string | undefined {
 	if (usage.output != null) parts.push(`output: ${usage.output}`);
 	if (usage.cacheRead != null) parts.push(`cache-read: ${usage.cacheRead}`);
 	if (usage.cacheWrite != null) parts.push(`cache-write: ${usage.cacheWrite}`);
+	// Subset of `output`, only present when the provider reports a reasoning/thinking breakdown.
+	if (usage.reasoning != null) parts.push(`reasoning: ${usage.reasoning}`);
 	if (usage.totalTokens != null) parts.push(`total: ${usage.totalTokens}`);
 	return parts.length > 0 ? `Tokens: ${parts.join(", ")}` : undefined;
 }

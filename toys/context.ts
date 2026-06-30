@@ -68,6 +68,8 @@ export default function contextExtension(pi: ExtensionAPI) {
 			let toolResultTokens = 0;
 			let toolResultCount = 0;
 			let toolCallCount = 0;
+			// Subset of assistant `output` tokens; not all providers report it.
+			let reasoningTokens = 0;
 
 			for (const msg of messages) {
 				const est = estimateTokens(msg);
@@ -82,6 +84,8 @@ export default function contextExtension(pi: ExtensionAPI) {
 							(c: any) => c.type === "tool_use",
 						).length;
 					}
+					const reasoning = (msg as any).usage?.reasoning;
+					if (typeof reasoning === "number") reasoningTokens += reasoning;
 				} else if (msg.role === "toolResult") {
 					toolResultTokens += est;
 					toolResultCount++;
@@ -176,6 +180,14 @@ export default function contextExtension(pi: ExtensionAPI) {
 					const last = compactions[compactions.length - 1];
 					rightText.push(
 						theme.fg("dim", `Last compaction saved ~${fmtK(last.tokensBefore)} tokens`),
+					);
+				}
+
+				if (reasoningTokens > 0) {
+					// Diagnostic only — reasoning tokens are billed but typically not
+					// resent in later turns, so they're not part of the dot-grid above.
+					rightText.push(
+						theme.fg("dim", `Reasoning tokens (cumulative): ${fmtK(reasoningTokens)}`),
 					);
 				}
 

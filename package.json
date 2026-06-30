@@ -46,6 +46,9 @@
       "./toys/shortcut-help.ts"
     ]
   },
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.80.3"
+  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
@@ -55,7 +58,7 @@
     }
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.74.0",
+    "@earendil-works/pi-coding-agent": "^0.80.3",
     "@types/node": "^24.13.1",
     "typescript": "^5.8.0"
   }

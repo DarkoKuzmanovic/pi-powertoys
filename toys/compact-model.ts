@@ -14,7 +14,8 @@
 import { loadToyConfig, saveToyConfig, removeToyConfig } from "./toys-config.ts";
 import { complete } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { convertToLlm, serializeConversation } from "@earendil-works/pi-coding-agent";
+import { convertToLlm, DynamicBorder, serializeConversation } from "@earendil-works/pi-coding-agent";
+import { Container, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
 
 const TOY_KEY = "compactModel";
 
@@ -37,6 +38,111 @@ function saveConfig(config: CompactModelConfig | null): void {
 	}
 }
 
+const DISABLE_VALUE = "__compact_model_disable__";
+const CURRENT_MARKER = " ✓";
+
+interface ModelPickerEntry {
+	value: string;
+	label: string;
+	description?: string;
+}
+
+function modelValue(model: { provider: string; id: string }): string {
+	return `${model.provider}/${model.id}`;
+}
+
+function buildModelPickerEntries(
+	models: Array<{ provider: string; id: string; reasoning?: boolean }>,
+	currentValue: string | null,
+): ModelPickerEntry[] {
+	const entries = models
+		.map((model) => ({ value: modelValue(model), reasoning: model.reasoning === true }))
+		.sort((a, b) => a.value.localeCompare(b.value))
+		.map((model) => ({
+			value: model.value,
+			label: model.value === currentValue ? `${model.value}${CURRENT_MARKER}` : model.value,
+			description: model.reasoning ? "reasoning" : undefined,
+		}));
+
+	return [
+		{
+			value: DISABLE_VALUE,
+			label: "⊘  Disable (use active model)",
+			description: "Use the active conversation model for compaction",
+		},
+		...entries,
+	];
+}
+
+function parseModelValue(value: string): { provider: string; model: string } | null {
+	const slashIdx = value.indexOf("/");
+	if (slashIdx <= 0 || slashIdx >= value.length - 1) return null;
+	return { provider: value.slice(0, slashIdx), model: value.slice(slashIdx + 1) };
+}
+
+async function pickModelWindowed(
+	ctx: any,
+	title: string,
+	entries: ModelPickerEntry[],
+	currentValue: string | null,
+): Promise<string | null> {
+	return ctx.ui.custom((tui: any, theme: any, _kb: any, done: (result: string | null) => void) => {
+		const items: SelectItem[] = entries.map((entry) => ({
+			value: entry.value,
+			label: entry.label,
+			description: entry.description,
+		}));
+		const container = new Container();
+		container.addChild(new DynamicBorder((text: string) => theme.fg("accent", text)));
+		const header = new Text(theme.fg("accent", theme.bold(title)));
+		container.addChild(header);
+		const list = new SelectList(items, Math.min(items.length, 10), {
+			selectedPrefix: (text: string) => theme.fg("accent", text),
+			selectedText: (text: string) => theme.fg("accent", text),
+			description: (text: string) => theme.fg("muted", text),
+			scrollInfo: (text: string) => theme.fg("dim", text),
+			noMatch: (text: string) => theme.fg("warning", text),
+		});
+		if (currentValue) {
+			const index = items.findIndex((item) => item.value === currentValue);
+			if (index >= 0) list.setSelectedIndex(index);
+		}
+		list.onSelect = (item: SelectItem) => done(item.value);
+		list.onCancel = () => done(null);
+		container.addChild(list);
+		container.addChild(new Text(theme.fg("dim", "↑↓ navigate · type to filter · enter select · esc cancel")));
+		container.addChild(new DynamicBorder((text: string) => theme.fg("accent", text)));
+
+		let filter = "";
+		const refreshHeader = () => {
+			header.setText(theme.fg("accent", theme.bold(filter ? `${title}  /${filter}` : title)));
+		};
+
+		return {
+			render(width: number) {
+				return container.render(width);
+			},
+			invalidate() {
+				container.invalidate();
+			},
+			handleInput(data: string) {
+				if (data.length === 1 && data >= " " && data !== "\u007f") {
+					filter += data;
+					list.setFilter(filter);
+					refreshHeader();
+				} else if (data === "\u007f" || data === "\b") {
+					filter = filter.slice(0, -1);
+					list.setFilter(filter);
+					refreshHeader();
+				} else {
+					list.handleInput(data);
+				}
+				tui.requestRender();
+			},
+		};
+	});
+}
+
 export default function compactModel(pi: ExtensionAPI) {
 	// --- Command: /compact-model ---
 	pi.registerCommand("compact-model", {
@@ -53,38 +159,35 @@ export default function compactModel(pi: ExtensionAPI) {
 				return;
 			}
 
-			// Build option list: disable + each available model
-			const options = [
-				"⊘  Disable (use active model)",
-				...available.map((m) => {
-					const marker = (current?.provider === m.provider && current?.model === m.id) ? " ✓" : "";
-					return `${m.provider}/${m.id}${marker}`;
-				}),
-			];
+			const currentValue = current ? `${current.provider}/${current.model}` : null;
+			const entries = buildModelPickerEntries(available, currentValue);
+			const title = `Compaction model (current: ${currentLabel})`;
 
-			const choice = await ctx.ui.select(
-				`Compaction model (current: ${currentLabel})`,
-				options,
-			);
+			let value: string | null;
+			if (ctx.mode === "tui" && typeof ctx.ui.custom === "function") {
+				value = await pickModelWindowed(ctx, title, entries, currentValue);
+			} else {
+				const byLabel = new Map(entries.map((entry) => [entry.label, entry.value] as const));
+				const choice = await ctx.ui.select(title, entries.map((entry) => entry.label));
+				value = choice ? (byLabel.get(choice) ?? null) : null;
+			}
 
-			if (choice === undefined) return; // cancelled
+			if (value === null) return; // cancelled
 
-			if (choice.startsWith("⊘")) {
+			if (value === DISABLE_VALUE) {
 				saveConfig(null);
 				ctx.ui.notify("Compaction model: disabled — will use active model", "info");
 				return;
 			}
 
-			// Strip the ✓ marker if present
-			const clean = choice.replace(/ ✓$/, "");
-			const slashIdx = clean.indexOf("/");
-			if (slashIdx === -1) return;
+			const parsed = parseModelValue(value);
+			if (!parsed) {
+				ctx.ui.notify("compact-model: could not parse selected model", "warning");
+				return;
+			}
 
-			const provider = clean.slice(0, slashIdx);
-			const model = clean.slice(slashIdx + 1);
-
-			saveConfig({ provider, model });
-			ctx.ui.notify(`Compaction model: ${provider}/${model}`, "info");
+			saveConfig(parsed);
+			ctx.ui.notify(`Compaction model: ${parsed.provider}/${parsed.model}`, "info");
 		},
 	});
 

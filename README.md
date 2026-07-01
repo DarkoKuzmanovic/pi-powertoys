@@ -6,7 +6,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 
 | Toy | Command | What it does |
 | --- | --- | --- |
-| **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a TUI selector — ideal for fast, cheap models with large context windows. |
+| **compact-model** | `/compact-model` | Offloads context compaction to a different model. Pick any available model from a scrolling, filterable TUI selector (windowed like pi's `/model`) — ideal for fast, cheap models with large context windows. |
 | **speedtest** | `/speedtest` | Benchmarks the active model's TTFT, tokens/sec, and total latency. Supports Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs. |
 | **context** | `/context` | Shows a 10×10 dot-grid breakdown of context usage by category (system prompt, user, assistant, tool results, free space), turn/tool-call/compaction stats, and cumulative reasoning-token count when the model reports thinking tokens. |
 | **contextual-working** | `/working-style`, `/working-indicator` | Replaces generic "Working..." with context-aware messages based on the active tool. Interactive TUI pickers for style and spinner. Persists across restarts. |

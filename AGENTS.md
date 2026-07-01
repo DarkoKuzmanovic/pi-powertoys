@@ -72,7 +72,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 
 | File | Slash command | Purpose |
 | --- | --- | --- |
-| `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model |
+| `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model via a scrolling, filterable TUI selector (windowed like pi's `/model`; falls back to plain `ctx.ui.select` in non-TUI modes) |
 | `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs |
 | `context.ts` | `/context` | Shows a 10×10 dot-grid breakdown of context usage by category, turn/tool-call/compaction stats, and cumulative reasoning-token count when reported |
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |

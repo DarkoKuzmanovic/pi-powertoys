@@ -651,12 +651,12 @@ class RateLimiter {
 // ─── AI Message Generator ────────────────────────────────────────
 
 class MessageGenerator {
-  private primaryApiKey: string;
+  private primaryApiKey: string | null;
   private fallbackApiKey?: string;
   private rateLimiter = new RateLimiter();
   private pending = new Map<string, Promise<string>>();
 
-  constructor(primaryApiKey: string, fallbackApiKey?: string) {
+  constructor(primaryApiKey: string | null, fallbackApiKey?: string) {
     this.primaryApiKey = primaryApiKey;
     this.fallbackApiKey = fallbackApiKey;
   }
@@ -724,6 +724,19 @@ class MessageGenerator {
       );
     }
     this.rateLimiter.recordCall();
+
+    // Google-only env (no primary key): go straight to the Gemini fallback —
+    // never send the fallback key to the primary (opencode.ai) endpoint (C3).
+    if (!this.primaryApiKey) {
+      if (this.fallbackApiKey) {
+        try {
+          return await this.fetchFromFallback(prompt, maxTokens);
+        } catch {
+          // fall through
+        }
+      }
+      throw new Error("AI call failed");
+    }
 
     try {
       return await this.fetchFromPrimary(prompt, maxTokens);
@@ -917,7 +930,9 @@ export default function (pi: ExtensionAPI) {
   if (opencodeGoApiKey) {
     generator = new MessageGenerator(opencodeGoApiKey, googleApiKey);
   } else if (googleApiKey) {
-    generator = new MessageGenerator(googleApiKey);
+    // Google-only: pass the key as the FALLBACK (Gemini) arg, not primary —
+    // otherwise it is sent to opencode.ai and 401s every session, leaking the key (C3).
+    generator = new MessageGenerator(null, googleApiKey);
   }
 
   const providerTag = () =>

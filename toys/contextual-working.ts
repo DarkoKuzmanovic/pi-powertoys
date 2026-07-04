@@ -934,7 +934,7 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.setWorkingIndicator(opts);
     ctx.ui.setStatus(
       "contextual-working",
-      `\udb81\udff6 ${[ctx.ui.theme.fg("accent", currentIndicator), ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
+      `${[ctx.ui.theme.fg("accent", currentIndicator), ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
     );
   };
 

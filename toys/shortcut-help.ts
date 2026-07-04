@@ -1,11 +1,14 @@
 /**
- * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay listing
- * all custom keyboard shortcuts and useful slash commands. Any keypress dismisses.
+ * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with two
+ * tabs: local shortcuts + slash commands, and the prompt gallery (adapted
+ * from ~/.pi/agent/prompts/gallery.md). Tab cycles tabs; any other key dismisses.
  */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
-import { type Focusable, visibleWidth } from "@earendil-works/pi-tui";
+import { type Focusable, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 
 type Entry = { key: string; description: string };
+type Section = { title: string; keyWidth: number; entries: Entry[] };
+type Tab = { label: string; sections: Section[] };
 
 const SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
@@ -40,19 +43,92 @@ const COMMANDS: Entry[] = [
 	{ key: "/loop tests", description: "Loop until tests pass" },
 ];
 
+// Adapted from ~/.pi/agent/prompts/gallery.md (/gallery) — keep in sync when
+// prompts are added or retired there.
+const GALLERY_SECTIONS: Section[] = [
+	{
+		title: "Session lifecycle",
+		keyWidth: 18,
+		entries: [
+			{ key: "/onboard [focus]", description: "Session start: scan repo, load context" },
+			{ key: "/wrap [save]", description: "Session end: gaps, blind spots, lessons" },
+		],
+	},
+	{
+		title: "Execution tiers (pick by scale)",
+		keyWidth: 18,
+		entries: [
+			{ key: "/auto-do <task>", description: "Bounded task: plan→build→review→verify" },
+			{ key: "/legate [spec]", description: "Multi-milestone build via PLAN.md" },
+			{ key: "/legate-wrap", description: "Close out a legate session" },
+			{ key: "/ultracode <task>", description: "Too big for one context window" },
+		],
+	},
+	{
+		title: "Dev loop",
+		keyWidth: 18,
+		entries: [
+			{ key: "/debug <bug>", description: "Reproduce → isolate → root-cause → fix" },
+			{ key: "/fix-issue <n>", description: "GitHub issue → verified PR" },
+			{ key: "/review [base]", description: "Pre-merge review, ranked findings" },
+			{ key: "/ship [focus]", description: "Docs, verify, commit, push" },
+		],
+	},
+	{
+		title: "Maintenance & strategy",
+		keyWidth: 18,
+		entries: [
+			{ key: "/extension-audit", description: "Evidence audit + semver roadmap" },
+			{ key: "/release [bump]", description: "Changelog, bump, tag, publish" },
+			{ key: "/upkeep [apply]", description: "Deps, audit, CI, branches sweep" },
+		],
+	},
+	{
+		title: "Decision support",
+		keyWidth: 18,
+		entries: [
+			{ key: "/council <q>", description: "4 models blind, chairman verdict" },
+			{ key: "/gallery", description: "Full gallery index in chat" },
+		],
+	},
+];
+
+const CHEAT_TAB: Tab = {
+	label: "⌨ Cheat Sheet",
+	sections: [
+		{ title: "Shortcuts", keyWidth: 16, entries: SHORTCUTS },
+		{ title: "Commands", keyWidth: 20, entries: COMMANDS },
+	],
+};
+
+const GALLERY_TAB: Tab = {
+	label: "📚 Prompt Gallery",
+	sections: GALLERY_SECTIONS,
+};
+
+const TABS: Tab[] = [CHEAT_TAB, GALLERY_TAB];
+
 class CheatSheetOverlay implements Focusable {
 	readonly width = 68;
 	focused = false;
 
 	private theme: Theme;
+	private tui: { requestRender: () => void };
 	private done: () => void;
+	private tabIndex = 0;
 
-	constructor(theme: Theme, done: () => void) {
+	constructor(tui: { requestRender: () => void }, theme: Theme, done: () => void) {
+		this.tui = tui;
 		this.theme = theme;
 		this.done = done;
 	}
 
-	handleInput(_data: string): void {
+	handleInput(data: string): void {
+		if (data === "\t" || matchesKey(data, "tab")) {
+			this.tabIndex = (this.tabIndex + 1) % TABS.length;
+			this.tui.requestRender();
+			return;
+		}
 		this.done();
 	}
 
@@ -61,6 +137,7 @@ class CheatSheetOverlay implements Focusable {
 		const th = this.theme;
 		const innerW = w - 2;
 		const lines: string[] = [];
+		const tab = TABS[this.tabIndex] ?? CHEAT_TAB;
 
 		const pad = (s: string, len: number) => {
 			const vis = visibleWidth(s);
@@ -80,22 +157,25 @@ class CheatSheetOverlay implements Focusable {
 			}
 		};
 
-		// Top border
+		// Top border + tab bar
 		lines.push(th.fg("border", `╭${"─".repeat(innerW)}╮`));
-		lines.push(row(` ${th.fg("accent", "⌨  Pi Cheat Sheet                            Alt+1 to reopen")}`));
+		const tabBar = TABS.map((t, i) =>
+			i === this.tabIndex
+				? th.fg("accent", `▸ ${t.label}`)
+				: th.fg("dim", `  ${t.label}`),
+		).join("   ");
+		lines.push(row(` ${tabBar}`));
 		lines.push(row(""));
 
-		// Shortcuts
-		lines.push(row(` ${th.fg("accent", "Shortcuts")}`));
-		section(SHORTCUTS, 16);
-		lines.push(divider());
-
-		// Commands
-		lines.push(row(` ${th.fg("accent", "Commands")}`));
-		section(COMMANDS, 20);
+		// Sections of the active tab
+		tab.sections.forEach((s, i) => {
+			lines.push(row(` ${th.fg("accent", s.title)}`));
+			section(s.entries, s.keyWidth);
+			if (i < tab.sections.length - 1) lines.push(divider());
+		});
 
 		lines.push(row(""));
-		lines.push(row(` ${th.fg("dim", "Press any key to dismiss")}`));
+		lines.push(row(` ${th.fg("dim", "Tab switch tab · any other key dismiss · Alt+1 reopen")}`));
 		lines.push(th.fg("border", `╰${"─".repeat(innerW)}╯`));
 
 		return lines;
@@ -107,20 +187,20 @@ class CheatSheetOverlay implements Focusable {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerShortcut("alt+1", {
-		description: "Show Pi cheat sheet overlay",
+		description: "Show Pi cheat sheet overlay (Tab cycles to prompt gallery)",
 		handler: async (ctx) => {
 			await ctx.ui.custom<void>(
-				(_tui, theme, _keybindings, done) => new CheatSheetOverlay(theme, done),
+				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),
 				{ overlay: true },
 			);
 		},
 	});
 
 	pi.registerCommand("shortcuts", {
-		description: "Show Pi cheat sheet overlay",
+		description: "Show Pi cheat sheet overlay (Tab cycles to prompt gallery)",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
-				(_tui, theme, _keybindings, done) => new CheatSheetOverlay(theme, done),
+				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),
 				{ overlay: true },
 			);
 		},

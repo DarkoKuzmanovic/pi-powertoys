@@ -16,7 +16,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | **ultrathink** | `/ultrathink`, `alt+6` | Detects "ultrathink" as you type and toggles a status flag; pi-hud renders it as a rainbow chip. |
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python via Ruff. Use cautiously with `--fix` because it mutates files. |
-| **shortcut-help** | `/shortcuts`, `alt+1` | Shows a floating cheat sheet of local shortcuts and useful slash commands. |
+| **shortcut-help** | `/shortcuts`, `alt+1` | Floating cheat sheet with two tabs — local shortcuts + slash commands, and the prompt gallery; Tab cycles tabs. |
 
 ## Archived toys
 

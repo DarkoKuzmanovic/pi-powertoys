@@ -82,7 +82,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | `ultrathink.ts` | `/ultrathink`, `Alt+6` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
-| `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Shows a floating cheat sheet of local shortcuts and useful slash commands |
+| `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Floating cheat sheet with two tabs — shortcuts + commands, and the prompt gallery (adapted from `~/.pi/agent/prompts/gallery.md`); Tab cycles tabs |
 
 Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, and `session-recap.ts`.
 

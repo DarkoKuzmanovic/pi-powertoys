@@ -29,12 +29,14 @@
     "LICENSE"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit --skipLibCheck"
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "test": "node --test toys/startup-benchmark.test.ts"
   },
   "pi": {
     "extensions": [
       "./toys/compact-model.ts",
       "./toys/speedtest.ts",
+      "./toys/startup-benchmark.ts",
       "./toys/context.ts",
       "./toys/contextual-working.ts",
       "./toys/intent-tracer.ts",

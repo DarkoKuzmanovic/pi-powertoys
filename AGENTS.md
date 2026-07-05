@@ -74,6 +74,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | --- | --- | --- |
 | `compact-model.ts` | `/compact-model` | Offloads compaction to a user-selected model via a scrolling, filterable TUI selector (windowed like pi's `/model`; falls back to plain `ctx.ui.select` in non-TUI modes) |
 | `speedtest.ts` | `/speedtest` | Benchmarks active model (TTFT, tok/s, latency) across Anthropic, OpenAI completions, OpenAI responses, and OpenAI Codex Responses APIs |
+| `startup-benchmark.ts` | `/startup-benchmark` | Benchmarks harness startup (extension-load cost), not model latency. Times repeated `pi … --mode rpc` boots that exit on stdin EOF (no model prompt). `delta` = floor `-ne` vs full boot; `isolate` = each extension via `-ne -e <entry>`. Appends hostname-tagged JSONL to `~/.pi/agent/cache/pi-powertoys/startup-benchmark.jsonl`. Pure `parseArgs`/`summarize`/`buildRow` unit-tested via `npm test` (`node --test`) |
 | `context.ts` | `/context` | Shows a 10×10 dot-grid breakdown of context usage by category, turn/tool-call/compaction stats, and cumulative reasoning-token count when reported |
 | `contextual-working.ts` | `/working-style`, `/working-indicator` | Context-aware "Working..." messages based on active tool, with AI-generated witty variants |
 | `intent-tracer.ts` | — | Injects `_i` intent field into tool schemas for better tool-call transparency |

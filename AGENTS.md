@@ -80,12 +80,11 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | `intent-tracer.ts` | — | Injects `_i` intent field into tool schemas for better tool-call transparency |
 | `agent-steer.ts` | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt; `/steer <text>` bypasses prompt |
 | `context-viewer.ts` | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy |
-| `ultrathink.ts` | `/ultrathink`, `Alt+6` | Toggles "ultrathink" status chip in footer; detects keyword as you type |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
 | `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Floating cheat sheet with two tabs — shortcuts + commands, and the prompt gallery (adapted from `~/.pi/agent/prompts/gallery.md`); Tab cycles tabs |
 
-Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, and `session-recap.ts`.
+Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, `session-recap.ts`, and `ultrathink.ts`.
 
 Moved safety hooks (`context-enforcer.ts`, `session-guard.ts`, `circuit-breaker.ts`, `json-guard.ts`) are owned by `../pi-guardian`. Previously disabled local toys have been removed; restore them from git history only if deliberately reintroduced and added back to both manifests.
 

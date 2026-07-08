@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, ultrathink status chip, Kitty attention notifications, extension linting, and shortcut help overlay",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, Kitty attention notifications, extension linting, and shortcut help overlay",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -42,7 +42,6 @@
       "./toys/intent-tracer.ts",
       "./toys/agent-steer.ts",
       "./toys/context-viewer.ts",
-      "./toys/ultrathink.ts",
       "./toys/kitty-attention.ts",
       "./toys/lint.ts",
       "./toys/shortcut-help.ts"

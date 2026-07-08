@@ -1,7 +1,8 @@
 /**
- * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with two
- * tabs: local shortcuts + slash commands, and the prompt gallery (adapted
- * from ~/.pi/agent/prompts/gallery.md). Tab cycles tabs; any other key dismisses.
+ * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with three
+ * tabs: local shortcuts + slash commands; the prompt gallery (adapted from
+ * ~/.pi/agent/prompts/gallery.md); and the ;;shorthand list (adapted from
+ * ~/.pi/agent/shorthands/). Tab cycles tabs; any other key dismisses.
  */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { type Focusable, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
@@ -12,8 +13,6 @@ type Tab = { label: string; sections: Section[] };
 
 const SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
-	{ key: "Alt+5", description: "Toggle Pixoo display" },
-	{ key: "Alt+6", description: "Toggle Ultrathink" },
 	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full→ultracode)" },
 	{ key: "Alt+9", description: "Cycle Ponytail (off→lite→full→ultra)" },
 	{ key: "Ctrl+`", description: "gitui overlay (Kitty)" },
@@ -93,6 +92,33 @@ const GALLERY_SECTIONS: Section[] = [
 	},
 ];
 
+// Adapted from ~/.pi/agent/shorthands/*.md — type ;;name (or ;;alias) inline in a
+// prompt and the body is appended as an expansion block. Keep in sync with the
+// shorthand files; manage with /sh list · /sh reload · /sh doctor.
+const SHORTHAND_SECTIONS: Section[] = [
+	{
+		title: "Shorthands (type ;;name inline)",
+		keyWidth: 20,
+		entries: [
+			{ key: ";;tldr ;;brief", description: "Decision first, ≤3 sentences, no preamble" },
+			{ key: ";;evidence ;;prove", description: "Run it, paste output, cite file:line" },
+			{ key: ";;options ;;opt", description: "2-3 options + a rec; don't act yet" },
+			{ key: ";;whatis ;;recon", description: "Research a repo/URL; adopt-or-not verdict" },
+			{ key: ";;revise ;;rev", description: "Self-review / reviewer pass before done" },
+			{ key: ";;braindump ;;bd", description: "Dump a messy idea; get questions first" },
+		],
+	},
+	{
+		title: "Manage",
+		keyWidth: 12,
+		entries: [
+			{ key: "/sh list", description: "List active shorthands" },
+			{ key: "/sh reload", description: "Reload from disk after editing" },
+			{ key: "/sh doctor", description: "Diagnostics & unknown ;;tokens" },
+		],
+	},
+];
+
 const CHEAT_TAB: Tab = {
 	label: "⌨ Cheat Sheet",
 	sections: [
@@ -106,7 +132,12 @@ const GALLERY_TAB: Tab = {
 	sections: GALLERY_SECTIONS,
 };
 
-const TABS: Tab[] = [CHEAT_TAB, GALLERY_TAB];
+const SHORTHAND_TAB: Tab = {
+	label: "📝 Shorthands",
+	sections: SHORTHAND_SECTIONS,
+};
+
+const TABS: Tab[] = [CHEAT_TAB, GALLERY_TAB, SHORTHAND_TAB];
 
 class CheatSheetOverlay implements Focusable {
 	readonly width = 68;
@@ -187,7 +218,7 @@ class CheatSheetOverlay implements Focusable {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerShortcut("alt+1", {
-		description: "Show Pi cheat sheet overlay (Tab cycles to prompt gallery)",
+		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
 		handler: async (ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),
@@ -197,7 +228,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("shortcuts", {
-		description: "Show Pi cheat sheet overlay (Tab cycles to prompt gallery)",
+		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),

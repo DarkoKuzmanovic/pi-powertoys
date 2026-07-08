@@ -14,7 +14,6 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | **intent-tracer** | — | Injects `_i` intent fields into tool schemas so the model declares what it is trying to accomplish before each tool call. Requires the post-install patch below. |
 | **agent-steer** | `/steer` | Intercepts mid-turn messages with steer / queue / discard / edit single-keypress prompt. `/steer <text>` bypasses the prompt and injects directly. |
 | **context-viewer** | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of the full system prompt or entire LLM context. Live `/` search, `n`/`N` navigation, `y` clipboard copy. |
-| **ultrathink** | `/ultrathink`, `alt+6` | Detects "ultrathink" as you type and toggles a status flag; pi-hud renders it as a rainbow chip. |
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python via Ruff. Use cautiously with `--fix` because it mutates files. |
 | **shortcut-help** | `/shortcuts`, `alt+1` | Floating cheat sheet with two tabs — local shortcuts + slash commands, and the prompt gallery; Tab cycles tabs. |
@@ -24,6 +23,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 The repo keeps retired toys under `archive/toys/` for reference, but they are not loaded by `package.json` or the local `settings.json` allowlist:
 
 - `archive/toys/claude-commands.ts` — legacy `.claude/commands` bridge; Pi prompt templates and skills are preferred.
+- `archive/toys/ultrathink.ts` — retired status-chip prompt helper; `pi-hud` handles display concerns and explicit prompt wording is enough.
 - `archive/toys/init.ts` — generic project bootstrap; PMTI project/milestone/task/implementation flow is preferred.
 - `archive/toys/narrate.ts` — novelty narration styles; not part of the core workflow.
 - `archive/toys/quick-resume.ts` — redundant with Pi session resume/history workflows.

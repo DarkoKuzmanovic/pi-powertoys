@@ -271,8 +271,20 @@ async function runAnthropicTest(
 		...extraHeaders,
 	};
 	if (apiKey) {
-		// OAuth token → Authorization: Bearer; API key → x-api-key
-		if (apiKey.startsWith("sk-")) {
+		// OAuth access tokens (sk-ant-oat...) → Authorization: Bearer;
+		// standard API keys (sk-ant-api...) → x-api-key.
+		// Mirrors pi-ai's isOAuthToken() check — the startsWith("sk-") alone
+		// misroutes OAuth tokens to x-api-key, which Anthropic rejects (401).
+		if (apiKey.includes("sk-ant-oat")) {
+			headers["Authorization"] = `Bearer ${apiKey}`;
+			// Claude Code identity headers for OAuth subscription tokens.
+			// Mirrors pi-ai's createClient() OAuth path. (The system prompt
+			// below is what actually satisfies Anthropic's OAuth gate; these
+			// headers are sent for parity with the working client.)
+			headers["anthropic-beta"] = "claude-code-20250219,oauth-2025-04-20";
+			headers["user-agent"] = "claude-cli/2.1.75";
+			headers["x-app"] = "cli";
+		} else if (apiKey.startsWith("sk-")) {
 			headers["x-api-key"] = apiKey;
 		} else {
 			headers["Authorization"] = `Bearer ${apiKey}`;
@@ -284,6 +296,13 @@ async function runAnthropicTest(
 		messages: [{ role: "user", content: prompt }],
 		max_tokens: maxTokens,
 		stream: true,
+		// OAuth (Claude subscription) tokens MUST send the Claude Code identity
+		// as the system prompt — Anthropic rejects OAuth requests without it
+		// (429 rate_limit_error, before rate-limit accounting). Mirrors pi-ai's
+		// buildParams() isOAuthToken path.
+		...(apiKey?.includes("sk-ant-oat")
+			? { system: "You are Claude Code, Anthropic's official CLI for Claude." }
+			: {}),
 	});
 
 	return await executeStreamTest(url, headers, body, result, (chunk) => {

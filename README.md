@@ -17,6 +17,7 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python via Ruff. Use cautiously with `--fix` because it mutates files. |
 | **shortcut-help** | `/shortcuts`, `alt+1` | Floating cheat sheet with two tabs — local shortcuts + slash commands, and the prompt gallery; Tab cycles tabs. |
+| **afk** | `/afk`, `alt+z` | Away-from-keyboard toggle: suspends git commit signing (`commit.gpgsign=false`) so a GPG pinentry prompt can't stall the agent while you're away; `/afk off` restores the previous value. A footer glyph shows state (keyboard vs. struck-through keyboard); `alt+z` toggles without typing. |
 
 ## Archived toys
 

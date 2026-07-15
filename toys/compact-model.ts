@@ -31,6 +31,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { complete } from "@earendil-works/pi-ai/compat";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { convertToLlm, DynamicBorder, serializeConversation } from "@earendil-works/pi-coding-agent";
 import { Container, matchesKey, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
@@ -504,12 +505,12 @@ export interface CompletionRequestOptions {
 }
 
 /**
- * Structural shape of `complete()` narrowed to what the key-pool loop needs.
- * Tests inject a fake matching this shape instead of monkey-patching the
- * real `complete` export or making live requests.
+ * Testable shape of `complete()`. The model stays a full registry `Model`:
+ * provider dispatch needs API/base-URL metadata, so reducing it to provider/id
+ * makes the request fail before reaching the network.
  */
 export type CompleteFn = (
-	model: { provider: string; id: string },
+	model: Model<Api>,
 	context: { messages: unknown },
 	options: CompletionRequestOptions,
 ) => Promise<CompletionResponse>;
@@ -524,7 +525,7 @@ export function extractSummaryText(response: CompletionResponse): string {
 
 export interface GeminiKeyPoolCompletionOptions {
 	paths: PoolPaths;
-	model: { provider: string; id: string };
+	model: Model<Api>;
 	headers?: Record<string, string>;
 	messages: unknown;
 	maxTokens: number;
@@ -626,9 +627,9 @@ export async function runGeminiKeyPoolCompletion(
 export const MINIMAX_FALLBACK = { provider: "minimax", model: "MiniMax-M3" } as const;
 
 export interface FallbackModelRegistry {
-	find(provider: string, modelId: string): { provider: string; id: string } | undefined;
+	find(provider: string, modelId: string): Model<Api> | undefined;
 	getApiKeyAndHeaders(
-		model: { provider: string; id: string },
+		model: Model<Api>,
 	): Promise<{ ok: boolean; apiKey?: string; headers?: Record<string, string> }>;
 }
 
@@ -723,7 +724,7 @@ ${conversationText}
 }
 
 export interface CompactionHookOptions {
-	model: { provider: string; id: string };
+	model: Model<Api>;
 	auth: { apiKey: string; headers?: Record<string, string> };
 	conversationText: string;
 	previousSummary?: string;
@@ -1497,7 +1498,7 @@ export default function compactModel(pi: ExtensionAPI) {
 		const conversationText = serializeConversation(convertToLlm(allMessages));
 
 		const result = await runCompactionHook({
-			model: { provider: model.provider, id: model.id },
+			model,
 			auth: { apiKey: auth.apiKey, headers: auth.headers },
 			conversationText,
 			previousSummary,

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { mkdtempSync, rmSync, statSync, readFileSync, writeFileSync, utimesSync, mkdirSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -424,7 +425,26 @@ test("recordOutcome: auth failure quarantines the key until explicitly cleared",
 	});
 });
 
-const GEMINI_MODEL = { provider: "google", id: "gemini-3.1-flash-lite" };
+function modelFixture(provider: string, id: string, overrides: Partial<Model<Api>> = {}): Model<Api> {
+	return {
+		id,
+		name: id,
+		api: "openai-completions",
+		provider,
+		baseUrl: "https://example.invalid/v1",
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 128_000,
+		maxTokens: 8_192,
+		...overrides,
+	};
+}
+
+const GEMINI_MODEL = modelFixture("google", "gemini-3.1-flash-lite", {
+	api: "google-generative-ai",
+	baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+});
 
 function textResponse(text: string) {
 	return { content: [{ type: "text", text }] };
@@ -597,7 +617,7 @@ test("runGeminiKeyPoolCompletion: notifications never include the plaintext secr
 });
 
 function fakeModelRegistry(options: {
-	model?: { provider: string; id: string } | null;
+	model?: Model<Api> | null;
 	auth?: { ok: boolean; apiKey?: string; headers?: Record<string, string> };
 }) {
 	return {
@@ -614,7 +634,7 @@ test("MINIMAX_FALLBACK: names the explicit fallback model, not the active conver
 
 test("attemptFallbackModel: succeeds against the explicit fallback model when authed", async () => {
 	const registry = fakeModelRegistry({
-		model: { provider: "minimax", id: "MiniMax-M3" },
+		model: modelFixture("minimax", "MiniMax-M3"),
 		auth: { ok: true, apiKey: "minimax-secret" },
 	});
 	const usedApiKeys: string[] = [];
@@ -652,7 +672,7 @@ test("attemptFallbackModel: returns null when the fallback model is not register
 
 test("attemptFallbackModel: returns null when there is no auth for the fallback model", async () => {
 	const registry = fakeModelRegistry({
-		model: { provider: "minimax", id: "MiniMax-M3" },
+		model: modelFixture("minimax", "MiniMax-M3"),
 		auth: { ok: false },
 	});
 	const completeFn = async () => textResponse("unused");
@@ -670,7 +690,7 @@ test("attemptFallbackModel: returns null when there is no auth for the fallback 
 
 test("attemptFallbackModel: a completion failure returns null rather than throwing", async () => {
 	const registry = fakeModelRegistry({
-		model: { provider: "minimax", id: "MiniMax-M3" },
+		model: modelFixture("minimax", "MiniMax-M3"),
 		auth: { ok: true, apiKey: "minimax-secret" },
 	});
 	const completeFn = async () => {
@@ -688,7 +708,7 @@ test("attemptFallbackModel: a completion failure returns null rather than throwi
 	assert.equal(result, null);
 });
 
-const NON_GEMINI_MODEL = { provider: "anthropic", id: "claude-sonnet-4-5" };
+const NON_GEMINI_MODEL = modelFixture("anthropic", "claude-sonnet-4-5", { api: "anthropic-messages" });
 const NORMAL_AUTH = { apiKey: "normal-auth-key", headers: undefined };
 
 function hookOptionsBase(overrides: Partial<Parameters<typeof runCompactionHook>[0]> = {}) {
@@ -752,6 +772,22 @@ test("runCompactionHook: Gemini Flash Lite with an activated pool uses a pool ke
 	});
 });
 
+test("runCompactionHook: forwards the full registered Gemini model unchanged", async () => {
+	await withTempPaths(async (paths) => {
+		writePoolStateFile(paths, poolStateWithTwoKeys());
+		const completeFn = async (model: Model<Api>) => {
+			assert.equal(model, GEMINI_MODEL);
+			assert.equal(model.api, "google-generative-ai");
+			assert.equal(model.baseUrl, "https://generativelanguage.googleapis.com/v1beta");
+			return textResponse("pool summary");
+		};
+		const result = await runCompactionHook(
+			hookOptionsBase({ model: GEMINI_MODEL, completeFn, poolPaths: paths }),
+		);
+		assert.equal(result?.summary, "pool summary");
+	});
+});
+
 test("runCompactionHook: all pool keys unavailable explicitly falls back to MiniMax-M3", async () => {
 	await withTempPaths(async (paths) => {
 		writePoolStateFile(paths, {
@@ -765,7 +801,7 @@ test("runCompactionHook: all pool keys unavailable explicitly falls back to Mini
 			return textResponse("minimax summary");
 		};
 		const modelRegistry = fakeModelRegistry({
-			model: { provider: "minimax", id: "MiniMax-M3" },
+			model: modelFixture("minimax", "MiniMax-M3"),
 			auth: { ok: true, apiKey: "minimax-secret" },
 		});
 		const result = await runCompactionHook(
@@ -970,12 +1006,10 @@ test("verifyPoolKey: success records a success and returns ok with the response 
 test("verifyPoolKey: resolves and forwards the registry's full Gemini model", async () => {
 	await withTempPaths(async (paths) => {
 		writePoolStateFile(paths, poolStateWithTwoKeys());
-		const fullModel = {
-			provider: "google",
-			id: "gemini-3.1-flash-lite",
+		const fullModel = modelFixture("google", "gemini-3.1-flash-lite", {
 			api: "google-generative-ai",
 			baseUrl: "https://generativelanguage.googleapis.com",
-		};
+		});
 		const registry = {
 			find: (provider: string, modelId: string) =>
 				provider === fullModel.provider && modelId === fullModel.id ? fullModel : undefined,
@@ -1169,7 +1203,7 @@ test("I-7: pool loop does not emit 'using default compaction' when MiniMax succe
 			throw new Error("should not reach Gemini");
 		};
 		const modelRegistry = fakeModelRegistry({
-			model: { provider: "minimax", id: "MiniMax-M3" },
+			model: modelFixture("minimax", "MiniMax-M3"),
 			auth: { ok: true, apiKey: "minimax-secret" },
 		});
 		const result = await runCompactionHook(
@@ -1257,7 +1291,7 @@ test("runGeminiKeyPoolCompletion: failure-accounting persistence error returns n
 test("attemptFallbackModel: never leaks raw provider error text in notifications", async () => {
 	const uniqueMarker = "FALLBACK_INTERNAL_DEBUG_TOKEN_ZXY999";
 	const registry = fakeModelRegistry({
-		model: { provider: "minimax", id: "MiniMax-M3" },
+		model: modelFixture("minimax", "MiniMax-M3"),
 		auth: { ok: true, apiKey: "minimax-secret" },
 	});
 	const completeFn = async () => {

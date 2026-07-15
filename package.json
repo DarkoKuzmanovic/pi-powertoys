@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "test": "node --test toys/startup-benchmark.test.ts"
+    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts"
   },
   "pi": {
     "extensions": [
@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "^0.80.3",
+    "@earendil-works/pi-tui": "^0.80.3",
     "@types/node": "^24.13.1",
     "typescript": "^5.8.0"
   }

@@ -341,3 +341,15 @@ The key-pool file may remain inert in cache or be removed explicitly by the user
 - State survives restart, resets by Pacific calendar day, and remains safe under concurrent Pi sessions.
 - Key storage remains mode `0600`, with no key material in logs, notifications, Git, or session entries.
 - Existing non-Gemini compact-model behavior remains unchanged and tested.
+
+## Addendum: MiniMax-M3 explicit fallback (grill decision, 2026-07-15)
+
+When every Gemini pool key is unavailable (all exhausted, rate-limited, quarantined, or disabled), compaction explicitly falls back to `minimax/MiniMax-M3` rather than Pi's active conversation model. The active model is often expensive or large-context and unsuited to a cheap summarization pass. If MiniMax-M3 is also unavailable (unregistered or unauthenticated), the hook returns `null` and Pi's own default compaction runs.
+
+This fallback is triggered only by `reason: "all-unavailable"` from the pool loop — not by aborts, empty summaries, or non-key failures, which fall straight through to Pi's default.
+
+Pool activation requires only that a pool file exists with at least one configured key (regardless of momentary eligibility). A pool with zero currently-usable keys still activates so the MiniMax-M3 fallback runs, rather than silently reverting to the plain single-auth Google path.
+
+## Addendum: Cross-machine advisory counters (grill decision, 2026-07-15)
+
+Pool state files are per-machine: each machine maintains its own local attempt counters, cooldown timers, and daily-exhaustion flags. No synchronization or coordination protocol is added between machines. Under light dual-machine use this is acceptable — the advisory counters provide a safety margin, and Google's authoritative 429 response corrects any stale local state on the next request. The soft daily limit (default 490, clamped 1–500) intentionally leaves headroom below Google's 500 RPD per-project ceiling to absorb counter drift from out-of-Pi requests, cross-machine desynchronization, and crash-recovery gaps.

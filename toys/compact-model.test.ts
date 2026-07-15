@@ -606,6 +606,8 @@ function fakeModelRegistry(options: {
 	};
 }
 
+const VERIFY_REGISTRY = fakeModelRegistry({ model: GEMINI_MODEL });
+
 test("MINIMAX_FALLBACK: names the explicit fallback model, not the active conversation model", () => {
 	assert.deepEqual(MINIMAX_FALLBACK, { provider: "minimax", model: "MiniMax-M3" });
 });
@@ -804,6 +806,13 @@ test("validateKeySecret: accepts a trimmed, non-empty, whitespace-free value", (
 	if (result.ok) assert.equal(result.secret, "AIzaSyABCDEF1234567890");
 });
 
+test("validateKeySecret: removes bracketed-paste transport wrappers before storage", () => {
+	const plainMarker = validateKeySecret("[200~AIzaSyABCDEF1234567890[201~");
+	assert.deepEqual(plainMarker, { ok: true, secret: "AIzaSyABCDEF1234567890" });
+	const escapedMarker = validateKeySecret("\u001b[200~AIzaSyABCDEF1234567890\u001b[201~");
+	assert.deepEqual(escapedMarker, { ok: true, secret: "AIzaSyABCDEF1234567890" });
+});
+
 test("validateKeySecret: rejects empty/whitespace-only input", () => {
 	assert.equal(validateKeySecret("").ok, false);
 	assert.equal(validateKeySecret("   ").ok, false);
@@ -948,13 +957,36 @@ test("verifyPoolKey: success records a success and returns ok with the response 
 			usedKeys.push(opts.apiKey ?? "");
 			return textResponse("verify ok");
 		};
-		const result = await verifyPoolKey(paths, "a", completeFn, NOW);
+		const result = await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW);
 		assert.equal(result.ok, true);
 		if (result.ok) assert.equal(result.text, "verify ok");
 		assert.deepEqual(usedKeys, ["AIzaSyKEY_A_FAKESECRET000000000000"]);
 		const { state } = loadPoolStateFile(paths);
 		assert.equal(state?.keys.find((k) => k.id === "a")?.successes, 1);
 		assert.equal(state?.keys.find((k) => k.id === "a")?.attempts, 1);
+	});
+});
+
+test("verifyPoolKey: resolves and forwards the registry's full Gemini model", async () => {
+	await withTempPaths(async (paths) => {
+		writePoolStateFile(paths, poolStateWithTwoKeys());
+		const fullModel = {
+			provider: "google",
+			id: "gemini-3.1-flash-lite",
+			api: "google-generative-ai",
+			baseUrl: "https://generativelanguage.googleapis.com",
+		};
+		const registry = {
+			find: (provider: string, modelId: string) =>
+				provider === fullModel.provider && modelId === fullModel.id ? fullModel : undefined,
+			getApiKeyAndHeaders: async () => ({ ok: false }),
+		};
+		const completeFn = async (model: unknown) => {
+			assert.equal(model, fullModel);
+			return textResponse("verify ok");
+		};
+		const result = await verifyPoolKey(paths, "a", registry, completeFn, NOW);
+		assert.equal(result.ok, true);
 	});
 });
 
@@ -966,7 +998,7 @@ test("verifyPoolKey: a 429 rate-limit failure records the failure and returns no
 			Object.assign(err, { status: 429 });
 			throw err;
 		};
-		const result = await verifyPoolKey(paths, "a", completeFn, NOW);
+		const result = await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW);
 		assert.equal(result.ok, false);
 		if (!result.ok) assert.equal(result.reason, "failure");
 		const { state } = loadPoolStateFile(paths);
@@ -983,7 +1015,7 @@ test("verifyPoolKey: a 401 auth failure quarantines the key", async () => {
 			Object.assign(err, { status: 401 });
 			throw err;
 		};
-		const result = await verifyPoolKey(paths, "a", completeFn, NOW);
+		const result = await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW);
 		assert.equal(result.ok, false);
 		const { state } = loadPoolStateFile(paths);
 		assert.equal(state?.keys.find((k) => k.id === "a")?.quarantinedReason, "auth");
@@ -993,7 +1025,7 @@ test("verifyPoolKey: a 401 auth failure quarantines the key", async () => {
 test("verifyPoolKey: returns not-found when the key id does not exist", async () => {
 	await withTempPaths(async (paths) => {
 		writePoolStateFile(paths, poolStateWithTwoKeys());
-		const result = await verifyPoolKey(paths, "nonexistent", async () => textResponse("unused"), NOW);
+		const result = await verifyPoolKey(paths, "nonexistent", VERIFY_REGISTRY, async () => textResponse("unused"), NOW);
 		assert.equal(result.ok, false);
 		if (!result.ok) assert.equal(result.reason, "not-found");
 	});
@@ -1004,7 +1036,7 @@ test("verifyPoolKey: notifications never include the plaintext secret, only fing
 		writePoolStateFile(paths, poolStateWithTwoKeys());
 		const completeFn = async () => textResponse("ok");
 		const { calls, notify } = collectingNotify();
-		await verifyPoolKey(paths, "a", completeFn, NOW, notify);
+		await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW, notify);
 		for (const { message } of calls) {
 			assert.ok(!message.includes("AIzaSyKEY_A_FAKESECRET"), `notification leaked plaintext: ${message}`);
 		}
@@ -1087,7 +1119,7 @@ test("I-5: verifyPoolKey never leaks raw provider error text in notifications or
 			throw err;
 		};
 		const { calls, notify } = collectingNotify();
-		const result = await verifyPoolKey(paths, "a", completeFn, NOW, notify);
+		const result = await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW, notify);
 		assert.equal(result.ok, false);
 		// The raw error message must not appear in any notification.
 		for (const { message } of calls) {
@@ -1181,7 +1213,7 @@ test("verifyPoolKey: success remains ok when outcome persistence fails", async (
 			}
 			return textResponse("unused");
 		};
-		const result = await verifyPoolKey(paths, "a", completeFn, NOW, notify);
+		const result = await verifyPoolKey(paths, "a", VERIFY_REGISTRY, completeFn, NOW, notify);
 		assert.equal(result.ok, true);
 		if (result.ok) assert.equal(result.text, "ok");
 		assert.ok(

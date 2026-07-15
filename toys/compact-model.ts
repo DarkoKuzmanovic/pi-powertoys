@@ -867,13 +867,21 @@ export async function runCompactionHook(options: CompactionHookOptions): Promise
 
 // ── Gemini key pool: manager primitives (used by /compact-keypool) ────
 
+function stripBracketedPasteMarkers(input: string): string {
+	return input
+		.replaceAll("\u001b[200~", "")
+		.replaceAll("\u001b[201~", "")
+		.replaceAll("[200~", "")
+		.replaceAll("[201~", "");
+}
+
 /**
- * Conservative local validation only — trimmed, non-empty, no embedded
- * whitespace/control characters. Deliberately does not require any single
- * key-prefix shape so alternate Gemini credential formats stay accepted.
+ * Remove terminal bracketed-paste transport wrappers, then apply conservative
+ * local validation: trimmed, non-empty, and no embedded whitespace/control
+ * characters. No key prefix is required so alternate Gemini formats work.
  */
 export function validateKeySecret(input: string): { ok: true; secret: string } | { ok: false; error: string } {
-	const secret = input.trim();
+	const secret = stripBracketedPasteMarkers(input).trim();
 	if (!secret) return { ok: false, error: "Key cannot be empty" };
 	// biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally scanning for control chars to reject them
 	if (/[\s\x00-\x1f\x7f]/.test(secret)) {
@@ -980,7 +988,7 @@ export async function reserveSpecificKey(
 
 export type VerifyPoolKeyResult =
 	| { ok: true; text: string }
-	| { ok: false; reason: "not-found" | "failure"; code?: GeminiErrorCode | null };
+	| { ok: false; reason: "not-found" | "model-not-found" | "failure"; code?: GeminiErrorCode | null };
 
 /**
  * Manually verify a single pool key by id: reserve it, make one completion
@@ -992,10 +1000,15 @@ export type VerifyPoolKeyResult =
 export async function verifyPoolKey(
 	paths: PoolPaths,
 	keyId: string,
+	modelRegistry: FallbackModelRegistry,
 	completeFn: CompleteFn,
 	now: number = Date.now(),
 	notify?: (message: string, type: "info" | "warning" | "error") => void,
 ): Promise<VerifyPoolKeyResult> {
+	const model = modelRegistry.find("google", "gemini-3.1-flash-lite");
+	if (!model) {
+		return { ok: false, reason: "model-not-found" };
+	}
 	const reserved = await reserveSpecificKey(paths, keyId, now);
 	if (!reserved) {
 		return { ok: false, reason: "not-found" };
@@ -1003,7 +1016,6 @@ export async function verifyPoolKey(
 
 	notify?.(`Verifying Gemini key ${fingerprint(reserved.secret)}\u2026`, "info");
 
-	const model = { provider: "google", id: "gemini-3.1-flash-lite" };
 	const messages = [{
 		role: "user" as const,
 		content: [{ type: "text" as const, text: "Reply with the single word: ok" }],
@@ -1263,14 +1275,18 @@ async function keyActionMenu(ctx: KeypoolContext, paths: PoolPaths, key: GeminiP
 	}
 
 	if (choice === "Verify key") {
-		ctx.ui.notify(`Verifying ${fp}\u2026`, "info");
-		const result = await verifyPoolKey(paths, key.id, complete as unknown as CompleteFn, Date.now(), (msg, type) => ctx.ui.notify(msg, type));
-		if (result.ok) {
-			ctx.ui.notify(`${fp} verified \u2713`, "info");
-		} else if (result.reason === "not-found") {
+		const result = await verifyPoolKey(
+			paths,
+			key.id,
+			ctx.modelRegistry,
+			complete as unknown as CompleteFn,
+			Date.now(),
+			(msg, type) => ctx.ui.notify(msg, type),
+		);
+		if (!result.ok && result.reason === "not-found") {
 			ctx.ui.notify(`${fp} not found in pool`, "warning");
-		} else {
-			ctx.ui.notify(`${fp} verification failed${result.code ? ` (${result.code})` : ""}`, "warning");
+		} else if (!result.ok && result.reason === "model-not-found") {
+			ctx.ui.notify("Gemini Flash Lite model is unavailable", "warning");
 		}
 		return;
 	}
@@ -1334,8 +1350,8 @@ function createMaskedInput(theme: { fg: (role: string, text: string) => string }
 				return;
 			}
 			// Printable characters (including paste as multi-char data).
-			// Reject control characters and whitespace within pasted content.
-			const filtered = data.replace(/[\x00-\x1f\x7f\s]/g, "");
+			// Remove paste transport wrappers, control characters, and whitespace.
+			const filtered = stripBracketedPasteMarkers(data).replace(/[\x00-\x1f\x7f\s]/g, "");
 			if (filtered) {
 				value += filtered;
 				cachedWidth = undefined;

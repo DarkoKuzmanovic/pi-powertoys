@@ -58,8 +58,8 @@ const GALLERY_SECTIONS: Section[] = [
 		keyWidth: 18,
 		entries: [
 			{ key: "/auto-do <task>", description: "Bounded task: plan→build→review→verify" },
-			{ key: "/legate [spec]", description: "Multi-milestone build via PLAN.md" },
-			{ key: "/legate-wrap", description: "Close out a legate session" },
+			{ key: "/crew [spec]", description: "Multi-milestone build via PLAN.md" },
+			{ key: "/crew-wrap", description: "Close out a crew session" },
 			{ key: "/ultracode <task>", description: "Too big for one context window" },
 		],
 	},

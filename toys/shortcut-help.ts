@@ -6,16 +6,71 @@
  */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { type Focusable, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 type Entry = { key: string; description: string };
 type Section = { title: string; keyWidth: number; entries: Entry[] };
 type Tab = { label: string; sections: Section[] };
 
-const SHORTCUTS: Entry[] = [
+const KITTY_HELP_TAG = /^\s*#\s*pi-launcher-help:\s*(.+?)\s*$/;
+// Tagged help supports plain `map <shortcut> <action>` lines; option flags have value-dependent grammar.
+const KITTY_MAP = /^\s*map\s+(?!--)(\S+)\s+/;
+
+function formatKittyShortcut(shortcut: string): string {
+	const names: Record<string, string> = {
+		alt: "Alt",
+		ctrl: "Ctrl",
+		grave: "`",
+		shift: "Shift",
+		super: "Super",
+	};
+	return shortcut
+		.split("+")
+		.map((part) => names[part.toLowerCase()] ?? (part.length === 1 ? part.toUpperCase() : part))
+		.join("+");
+}
+
+export function parseKittyLauncherHelp(config: string): Entry[] {
+	const lines = config.split(/\r?\n/);
+	const entries: Entry[] = [];
+	for (let index = 0; index < lines.length - 1; index++) {
+		const description = lines[index]?.match(KITTY_HELP_TAG)?.[1];
+		if (!description) continue;
+		const shortcut = lines[index + 1]?.match(KITTY_MAP)?.[1];
+		if (!shortcut) continue;
+		entries.push({ key: formatKittyShortcut(shortcut), description });
+	}
+	return entries;
+}
+
+type LauncherHelpResult = { entries: Entry[]; notice?: string };
+
+const KITTY_CONFIG_PATH = join(
+	process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"),
+	"kitty",
+	"kitty.conf",
+);
+
+export function loadKittyLauncherHelp(configPath = KITTY_CONFIG_PATH): LauncherHelpResult {
+	try {
+		const entries = parseKittyLauncherHelp(readFileSync(configPath, "utf8"));
+		return entries.length > 0
+			? { entries }
+			: { entries, notice: `No tagged Kitty launcher mappings found (${configPath})` };
+	} catch {
+		return {
+			entries: [],
+			notice: `Terminal launchers unavailable (${configPath})`,
+		};
+	}
+}
+
+const PI_SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
 	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full→ultracode)" },
 	{ key: "Alt+9", description: "Cycle Ponytail (off→lite→full→ultra)" },
-	{ key: "Ctrl+`", description: "gitui overlay (Kitty)" },
 	{ key: "Ctrl+P", description: "Cycle scoped models" },
 	{ key: "Shift+Tab", description: "Cycle thinking level" },
 	{ key: "Ctrl+L", description: "Open model selector" },
@@ -119,14 +174,6 @@ const SHORTHAND_SECTIONS: Section[] = [
 	},
 ];
 
-const CHEAT_TAB: Tab = {
-	label: "⌨ Cheat Sheet",
-	sections: [
-		{ title: "Shortcuts", keyWidth: 16, entries: SHORTCUTS },
-		{ title: "Commands", keyWidth: 20, entries: COMMANDS },
-	],
-};
-
 const GALLERY_TAB: Tab = {
 	label: "📚 Prompt Gallery",
 	sections: GALLERY_SECTIONS,
@@ -137,7 +184,17 @@ const SHORTHAND_TAB: Tab = {
 	sections: SHORTHAND_SECTIONS,
 };
 
-const TABS: Tab[] = [CHEAT_TAB, GALLERY_TAB, SHORTHAND_TAB];
+export function buildTabs(launcherHelp: LauncherHelpResult): Tab[] {
+	const piEntries = launcherHelp.notice
+		? [...PI_SHORTCUTS, { key: "Kitty", description: launcherHelp.notice }]
+		: PI_SHORTCUTS;
+	const sections: Section[] = [{ title: "Pi shortcuts", keyWidth: 16, entries: piEntries }];
+	if (launcherHelp.entries.length > 0) {
+		sections.push({ title: "Terminal launchers (Kitty)", keyWidth: 16, entries: launcherHelp.entries });
+	}
+	sections.push({ title: "Commands", keyWidth: 20, entries: COMMANDS });
+	return [{ label: "⌨ Cheat Sheet", sections }, GALLERY_TAB, SHORTHAND_TAB];
+}
 
 class CheatSheetOverlay implements Focusable {
 	readonly width = 68;
@@ -146,17 +203,19 @@ class CheatSheetOverlay implements Focusable {
 	private theme: Theme;
 	private tui: { requestRender: () => void };
 	private done: () => void;
+	private tabs: Tab[];
 	private tabIndex = 0;
 
-	constructor(tui: { requestRender: () => void }, theme: Theme, done: () => void) {
+	constructor(tui: { requestRender: () => void }, theme: Theme, tabs: Tab[], done: () => void) {
 		this.tui = tui;
 		this.theme = theme;
+		this.tabs = tabs;
 		this.done = done;
 	}
 
 	handleInput(data: string): void {
 		if (data === "\t" || matchesKey(data, "tab")) {
-			this.tabIndex = (this.tabIndex + 1) % TABS.length;
+			this.tabIndex = (this.tabIndex + 1) % this.tabs.length;
 			this.tui.requestRender();
 			return;
 		}
@@ -168,7 +227,7 @@ class CheatSheetOverlay implements Focusable {
 		const th = this.theme;
 		const innerW = w - 2;
 		const lines: string[] = [];
-		const tab = TABS[this.tabIndex] ?? CHEAT_TAB;
+		const tab = this.tabs[this.tabIndex] ?? this.tabs[0];
 
 		const pad = (s: string, len: number) => {
 			const vis = visibleWidth(s);
@@ -190,7 +249,7 @@ class CheatSheetOverlay implements Focusable {
 
 		// Top border + tab bar
 		lines.push(th.fg("border", `╭${"─".repeat(innerW)}╮`));
-		const tabBar = TABS.map((t, i) =>
+		const tabBar = this.tabs.map((t, i) =>
 			i === this.tabIndex
 				? th.fg("accent", `▸ ${t.label}`)
 				: th.fg("dim", `  ${t.label}`),
@@ -221,7 +280,7 @@ export default function (pi: ExtensionAPI) {
 		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
 		handler: async (ctx) => {
 			await ctx.ui.custom<void>(
-				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),
+				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),
 				{ overlay: true },
 			);
 		},
@@ -231,7 +290,7 @@ export default function (pi: ExtensionAPI) {
 		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
-				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, done),
+				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),
 				{ overlay: true },
 			);
 		},

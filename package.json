@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts"
+    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts toys/shortcut-help.test.ts"
   },
   "pi": {
     "extensions": [

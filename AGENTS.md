@@ -83,7 +83,7 @@ A helper earns a place in `toy-kit.ts` only when two or more toys already hold a
 | `context-viewer.ts` | `/system-prompt-data`, `/total-context-data` | Scrollable overlay of full system prompt or entire LLM context; live `/` search, `n`/`N` navigation, `y` clipboard copy |
 | `kitty-attention.ts` | `/kitty-attention` | Sends Kitty OSC 99 desktop popups and/or terminal bell when turns finish, questions are asked, or user attention is likely needed |
 | `lint.ts` | `/lint` | Auto-detects linting for Pi extension TS/JS via Biome or Python via Ruff; `--fix` mutates files |
-| `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Floating cheat sheet with two tabs — shortcuts + commands, and the prompt gallery (adapted from `~/.pi/agent/prompts/gallery.md`); Tab cycles tabs |
+| `shortcut-help.ts` | `/shortcuts`, `Alt+1` | Floating three-tab cheat sheet for Pi shortcuts/commands, prompt gallery, and shorthands; terminal launcher rows are read on demand from `# pi-launcher-help:` tags immediately preceding mappings in `~/.config/kitty/kitty.conf` |
 
 Archived toys live under `archive/toys/` and are not loaded by the local `settings.json` allowlist: `claude-commands.ts`, `init.ts`, `narrate.ts`, `quick-resume.ts`, `session-recap.ts`, and `ultrathink.ts`.
 

@@ -7,12 +7,12 @@
 - **Evidence:** One extension file, one focused parser test, and one user-level Kitty configuration change; no architecture fork or protected boundary.
 - **Allowed ceremony:** Test-first parser change, typecheck/test gate, one draft PR trial.
 - **Promotion triggers:** Additional repositories, generated Kitty configuration, or changes to Crew policy during this trial.
-- **Delivery:** draft-pr (`origin/DarkoKuzmanovic/pi-powertoys`, pending)
+- **Delivery:** draft-pr ([PR #1](https://github.com/DarkoKuzmanovic/pi-powertoys/pull/1))
 - **Started-at:** 2026-07-20T11:36:27+02:00
 - **First-worker-at:** direct orchestrator work; no worker dispatch
 - **Time-to-first-worker:** n/a
-- **Dispatches:** 0
-- **Review-bundles:** 0
+- **Dispatches:** 1 reviewer
+- **Review-bundles:** 1
 - **Worker-retries:** 0
 - **Oracle:** 0
 
@@ -32,9 +32,9 @@
 
 ## Outcome M2.3 — Draft PR trial
 
-- [ ] Push `crew/m2-kitty-launcher-help` after the verified outcome gate.
-- [ ] Open a draft PR whose body summarizes scope and links to this pushed `PLAN.md` without mirroring its checkboxes.
-- [ ] Record the PR URL in `## Scope decision`.
+- [x] Push `crew/m2-kitty-launcher-help` after the verified outcome gate.
+- [x] Open a draft PR whose body summarizes scope and links to this pushed `PLAN.md` without mirroring its checkboxes.
+- [x] Record the PR URL in `## Scope decision`.
 
 ## Verification — 2026-07-20
 

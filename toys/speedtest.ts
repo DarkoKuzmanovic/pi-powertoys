@@ -1,4 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { randomUUID } from "node:crypto";
+import packageMetadata from "../package.json" with { type: "json" };
 import { withStatusChip } from "./toy-kit.ts";
 
 // --- Config ---
@@ -167,6 +169,17 @@ async function runSpeedTest(
 		if (api === "openai-codex-responses") {
 			return await runOpenAICodexResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
 		}
+		if (api === "xai-responses") {
+			return await runOpenAIResponsesTest(
+				baseUrl,
+				model.id,
+				apiKey,
+				xaiSpeedtestHeaders(model.id, extraHeaders),
+				result,
+				prompt,
+				maxTokens,
+			);
+		}
 		if (api === "openai-responses") {
 			return await runOpenAIResponsesTest(baseUrl, model.id, apiKey, extraHeaders, result, prompt, maxTokens);
 		}
@@ -213,6 +226,27 @@ async function runOpenAITest(
 		const tokens = chunk.usage?.completion_tokens;
 		return { content: content || undefined, outputTokens: tokens || undefined };
 	});
+}
+
+/** xAI's custom stream normally adds these headers; speedtest's raw fetch bypasses that transport. */
+function xaiSpeedtestHeaders(
+	modelId: string,
+	extraHeaders: Record<string, string> | undefined,
+): Record<string, string> {
+	const sessionId = randomUUID();
+	const interactive = process.stdin.isTTY === true && process.stdout.isTTY === true;
+	return {
+		...extraHeaders,
+		"x-grok-client-identifier": extraHeaders?.["x-grok-client-identifier"] ?? packageMetadata.name,
+		"x-grok-client-version": extraHeaders?.["x-grok-client-version"] ?? packageMetadata.version,
+		"X-XAI-Token-Auth": "xai-grok-cli",
+		"x-authenticateresponse": "authenticate-response",
+		"x-grok-client-mode": interactive ? "interactive" : "headless",
+		"x-grok-conv-id": sessionId,
+		"x-grok-req-id": randomUUID(),
+		"x-grok-model-override": modelId.toLowerCase().split("/").pop() || modelId,
+		"x-grok-session-id": sessionId,
+	};
 }
 
 // --- OpenAI Responses API ---

@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, Kitty attention notifications, extension linting, shortcut help overlay, and an away-from-keyboard commit-signing toggle",
+  "description": "Collection of standalone Pi coding agent extensions \u2014 compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, Kitty attention notifications, extension linting, shortcut help overlay, and an away-from-keyboard commit-signing toggle",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -45,7 +45,8 @@
       "./toys/kitty-attention.ts",
       "./toys/lint.ts",
       "./toys/shortcut-help.ts",
-      "./toys/afk.ts"
+      "./toys/afk.ts",
+      "./toys/prompt-doctor.ts"
     ]
   },
   "dependencies": {

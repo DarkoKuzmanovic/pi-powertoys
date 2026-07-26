@@ -1,8 +1,8 @@
 /**
- * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with three
- * tabs: local shortcuts + slash commands; the prompt gallery (adapted from
- * ~/.pi/agent/prompts/gallery.md); and the ;;shorthand list (adapted from
- * ~/.pi/agent/shorthands/). Tab cycles tabs; any other key dismisses.
+ * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with four
+ * tabs: local shortcuts + slash commands; Herdr shortcuts; the prompt gallery
+ * (adapted from ~/.pi/agent/prompts/gallery.md); and the ;;shorthand list
+ * (adapted from ~/.pi/agent/shorthands/). Tab cycles tabs; any other key dismisses.
  */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { type Focusable, matchesKey, visibleWidth } from "@earendil-works/pi-tui";
@@ -69,17 +69,24 @@ export function loadKittyLauncherHelp(configPath = KITTY_CONFIG_PATH): LauncherH
 
 const PI_SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
-	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full→ultracode)" },
+	{ key: "Alt+5", description: "Toggle Pixoo display" },
+	{ key: "Alt+7", description: "Cycle Fusion (off→lite→full→max)" },
 	{ key: "Alt+9", description: "Cycle Ponytail (off→lite→full→ultra)" },
+	{ key: "Alt+Z", description: "Toggle AFK commit-signing mode" },
 	{ key: "Ctrl+P", description: "Cycle scoped models" },
+	{ key: "Ctrl+Shift+P", description: "Cycle scoped models backward" },
 	{ key: "Shift+Tab", description: "Cycle thinking level" },
+	{ key: "Ctrl+T", description: "Collapse or expand thinking blocks" },
 	{ key: "Ctrl+L", description: "Open model selector" },
+	{ key: "Ctrl+O", description: "Collapse or expand tool output" },
+	{ key: "Ctrl+X", description: "Copy last assistant message" },
 	{ key: "Ctrl+G", description: "Open editor text in external editor" },
+	{ key: "Alt+Enter", description: "Queue a follow-up message" },
 	{ key: "Esc", description: "Interrupt agent mid-turn" },
 ];
 
 const COMMANDS: Entry[] = [
-	{ key: "/fable tui", description: "Manage Fable-capable models" },
+	{ key: "/reload", description: "Reload extensions, prompts, skills, and themes" },
 	{ key: "/scoped-models", description: "Enable/disable models for Ctrl+P" },
 	{ key: "/working-color", description: "Animate working message colors" },
 	{ key: "/steer <text>", description: "Inject text mid-turn" },
@@ -93,8 +100,9 @@ const COMMANDS: Entry[] = [
 	{ key: "/lint", description: "Lint loaded extensions" },
 	{ key: "/hud hint cycle", description: "Rotate footer hints continuously" },
 	{ key: "/color <name>", description: "Tag session in tree view" },
-	{ key: "/enhance", description: "Rewrite prompt via stronger model" },
-	{ key: "/loop tests", description: "Loop until tests pass" },
+	{ key: "/ss [ocr]", description: "Capture desktop region into context" },
+	{ key: "/afk", description: "Show or toggle commit-signing AFK mode" },
+	{ key: "/pixoo", description: "Control Pixoo usage display" },
 ];
 
 // Adapted from ~/.pi/agent/prompts/gallery.md (/gallery) — keep in sync when
@@ -184,6 +192,44 @@ const SHORTHAND_TAB: Tab = {
 	sections: SHORTHAND_SECTIONS,
 };
 
+const HERDR_TAB: Tab = {
+	label: "🧭 Herdr",
+	sections: [
+		{
+			title: "Our direct bindings",
+			keyWidth: 20,
+			entries: [
+				{ key: "Ctrl+1 / 3", description: "Split pane down / right" },
+				{ key: "Ctrl+2/4/6/8", description: "Focus down / left / right / up" },
+				{ key: "Ctrl+5", description: "Return to last focused pane" },
+				{ key: "Ctrl+7 / 9", description: "Previous / next agent" },
+				{ key: "Ctrl+0", description: "Close focused pane" },
+				{ key: "Ctrl+Shift+1", description: "Enter resize mode" },
+				{ key: "Ctrl+Shift+3", description: "Open full session navigator" },
+				{ key: "Ctrl+Shift+4 / 6", description: "Previous / next tab" },
+				{ key: "Ctrl+Shift+5", description: "Toggle focused pane zoom" },
+				{ key: "Ctrl+Shift+7 / 9", description: "Previous / next workspace" },
+			],
+		},
+		{
+			title: "Standard Herdr shortcuts",
+			keyWidth: 20,
+			entries: [
+				{ key: "Ctrl+B, ?", description: "Show active Herdr keybindings" },
+				{ key: "Ctrl+B, C", description: "Create a new tab" },
+				{ key: "Ctrl+B, Shift+N", description: "Create a new workspace" },
+				{ key: "Ctrl+B, W", description: "Open workspace picker" },
+				{ key: "Ctrl+B, E", description: "Edit focused pane scrollback" },
+				{ key: "Ctrl+B, O", description: "Open notification target" },
+				{ key: "Ctrl+B, Shift+G", description: "Create a worktree workspace" },
+				{ key: "Ctrl+B, B", description: "Toggle sidebar" },
+				{ key: "Ctrl+B, Q", description: "Detach; leave session running" },
+				{ key: "Ctrl+B, Shift+R", description: "Reload Herdr configuration" },
+			],
+		},
+	],
+};
+
 export function buildTabs(launcherHelp: LauncherHelpResult): Tab[] {
 	const piEntries = launcherHelp.notice
 		? [...PI_SHORTCUTS, { key: "Kitty", description: launcherHelp.notice }]
@@ -193,11 +239,11 @@ export function buildTabs(launcherHelp: LauncherHelpResult): Tab[] {
 		sections.push({ title: "Terminal launchers (Kitty)", keyWidth: 16, entries: launcherHelp.entries });
 	}
 	sections.push({ title: "Commands", keyWidth: 20, entries: COMMANDS });
-	return [{ label: "⌨ Cheat Sheet", sections }, GALLERY_TAB, SHORTHAND_TAB];
+	return [{ label: "⌨ Cheat Sheet", sections }, HERDR_TAB, GALLERY_TAB, SHORTHAND_TAB];
 }
 
 class CheatSheetOverlay implements Focusable {
-	readonly width = 68;
+	readonly width = 72;
 	focused = false;
 
 	private theme: Theme;
@@ -277,7 +323,7 @@ class CheatSheetOverlay implements Focusable {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerShortcut("alt+1", {
-		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
+		description: "Show cheat sheet overlay (Tab cycles: Herdr, gallery, shorthands)",
 		handler: async (ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),
@@ -287,7 +333,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("shortcuts", {
-		description: "Show Pi cheat sheet overlay (Tab cycles tabs: gallery, shorthands)",
+		description: "Show cheat sheet overlay (Tab cycles: Herdr, gallery, shorthands)",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),

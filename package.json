@@ -1,7 +1,7 @@
 {
   "name": "pi-powertoys",
   "version": "1.0.0",
-  "description": "Collection of standalone Pi coding agent extensions \u2014 compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, Kitty attention notifications, extension linting, shortcut help overlay, and an away-from-keyboard commit-signing toggle",
+  "description": "Collection of standalone Pi coding agent extensions — compact model offload, speedtest benchmark, context meter, contextual working messages, intent tracer, agent steering, context viewer, Kitty attention notifications, extension linting, shortcut help overlay, and an away-from-keyboard commit-signing toggle",
   "author": "Darko Kuzmanovic",
   "license": "MIT",
   "type": "module",
@@ -49,21 +49,22 @@
       "./toys/prompt-doctor.ts"
     ]
   },
-  "dependencies": {
-    "@earendil-works/pi-ai": "^0.80.3"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-tui": "*"
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-coding-agent": {
       "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
     }
   },
-  "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.80.3",
-    "@earendil-works/pi-tui": "^0.80.3",
-    "@types/node": "^24.13.1",
-    "typescript": "^5.8.0"
-  }
+  "devDependencies": {}
 }

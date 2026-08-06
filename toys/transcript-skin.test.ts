@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
 	default as transcriptSkin,
 	applySkin,
+	completeArgs,
 	formatStatus,
 	mapOutsideCode,
 	maskSecrets,
@@ -182,16 +183,64 @@ test("formatStatus names the display-only contract", () => {
 	assert.ok(formatStatus(config()).startsWith("Transcript skin (display only"));
 });
 
+test("completeArgs suggests every verb on an empty prefix", () => {
+	const items = completeArgs("") ?? [];
+	assert.deepEqual(
+		items.map((i) => i.value),
+		["status", "on", "off", "mask", "paths", "thinking"],
+	);
+});
+
+test("completeArgs narrows by prefix", () => {
+	assert.deepEqual((completeArgs("ma") ?? []).map((i) => i.value), ["mask"]);
+	// "o" matches both "on" and "off".
+	assert.deepEqual((completeArgs("o") ?? []).map((i) => i.value), ["on", "off"]);
+});
+
+test("completeArgs offers on/off once a toggle key is typed", () => {
+	assert.deepEqual(
+		(completeArgs("mask ") ?? []).map((i) => i.value),
+		["mask on", "mask off"],
+	);
+	// Values carry the key, because a suggestion replaces the whole argument.
+	assert.deepEqual((completeArgs("thinking of") ?? []).map((i) => i.value), ["thinking off"]);
+});
+
+test("completeArgs declines where it has nothing useful to add", () => {
+	assert.equal(completeArgs("zzz"), null);
+	assert.equal(completeArgs("status "), null, "status takes no value");
+	assert.equal(completeArgs("mask on "), null, "nothing follows a complete pair");
+	assert.equal(completeArgs("mask zzz"), null);
+});
+
+test("every completion suggestion round-trips through parseCommandArgs", () => {
+	// The two halves of the command must agree: anything offered must parse.
+	for (const seed of ["", "mask ", "paths ", "thinking "]) {
+		for (const item of completeArgs(seed) ?? []) {
+			if (!item.value.includes(" ") && ["mask", "paths", "thinking"].includes(item.value)) {
+				continue; // bare toggle key still needs its value
+			}
+			assert.notEqual(
+				parseCommandArgs(item.value),
+				null,
+				`suggestion ${JSON.stringify(item.value)} must be accepted by parseCommandArgs`,
+			);
+		}
+	}
+});
+
 test("transcriptSkin registers a transformer and a slash command without touching the model path", () => {
 	let transformer: ((markdown: string, context: SkinContext) => string) | undefined;
 	let commandName: string | undefined;
+	let options: { getArgumentCompletions?: unknown } | undefined;
 
 	const stub = {
 		registerMarkdownTransformer(fn: (markdown: string, context: SkinContext) => string) {
 			transformer = fn;
 		},
-		registerCommand(name: string) {
+		registerCommand(name: string, opts: { getArgumentCompletions?: unknown }) {
 			commandName = name;
+			options = opts;
 		},
 	} as unknown as Parameters<typeof transcriptSkin>[0];
 
@@ -199,6 +248,7 @@ test("transcriptSkin registers a transformer and a slash command without touchin
 
 	assert.equal(commandName, "transcript-skin");
 	assert.equal(typeof transformer, "function");
+	assert.equal(typeof options?.getArgumentCompletions, "function");
 
 	// Whatever the stored config says, the transformer must return a string and
 	// never throw — a cosmetic rule may not be able to break rendering.

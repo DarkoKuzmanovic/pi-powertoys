@@ -15,7 +15,15 @@
  */
 
 import { homedir } from "node:os";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
+import {
+	type AutocompleteItem,
+	Container,
+	type SettingItem,
+	SettingsList,
+	Text,
+} from "@earendil-works/pi-tui";
 import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
 
 const TOY_KEY = "transcriptSkin";
@@ -284,6 +292,121 @@ function onOff(value: boolean): string {
 
 const USAGE = "Usage: /transcript-skin [on|off|status|mask on|off|paths on|off|thinking on|off]";
 
+// ── Argument autocomplete ──────────────────────────────────────
+
+/**
+ * Toggle keys that take a trailing `on`/`off`. Names must match the keys
+ * `parseCommandArgs` accepts — that function owns the mapping to config
+ * fields, so this table deliberately carries only labels.
+ */
+const TOGGLE_KEYS: ReadonlyArray<readonly [string, string]> = [
+	["mask", "Redact credential-shaped tokens"],
+	["paths", "Collapse long absolute paths"],
+	["thinking", "Render thinking as a blockquote"],
+];
+
+const VERBS: ReadonlyArray<readonly [string, string]> = [
+	["status", "Show current settings"],
+	["on", "Enable the skin"],
+	["off", "Disable the skin entirely"],
+];
+
+/**
+ * Suggestions for `/transcript-skin <prefix>`.
+ *
+ * Returned `value`s replace the whole argument string, so second-level items
+ * carry their key: completing `mask o` yields `mask on`, not bare `on`.
+ * Returning null lets pi fall through to its own completion.
+ */
+export function completeArgs(prefix: string): AutocompleteItem[] | null {
+	const text = prefix.trimStart().toLowerCase();
+
+	const pair = /^(\S+)\s+(\S*)$/.exec(text);
+	if (pair) {
+		const [, key = "", valuePrefix = ""] = pair;
+		const toggle = TOGGLE_KEYS.find(([name]) => name === key);
+		if (!toggle) return null;
+		const items = ["on", "off"]
+			.filter((value) => value.startsWith(valuePrefix))
+			.map((value) => ({
+				value: `${key} ${value}`,
+				label: `${key} ${value}`,
+				description: toggle[1],
+			}));
+		return items.length > 0 ? items : null;
+	}
+
+	// Anything past a completed second word has nothing left to suggest.
+	if (/\s/.test(text)) return null;
+
+	const items: AutocompleteItem[] = [
+		...VERBS.map(([name, description]) => ({ value: name, label: name, description })),
+		...TOGGLE_KEYS.map(([name, description]) => ({
+			value: name,
+			label: `${name} on|off`,
+			description,
+		})),
+	].filter((item) => item.value.startsWith(text));
+
+	return items.length > 0 ? items : null;
+}
+
+// ── Settings panel ─────────────────────────────────────────────
+
+/** Rows of the interactive panel, in display order. */
+const PANEL_ROWS: ReadonlyArray<readonly [keyof TranscriptSkinConfig, string, string]> = [
+	["enabled", "Skin enabled", "Master switch — off restores raw Markdown"],
+	["maskSecrets", "Mask secrets", "Redact credential-shaped tokens (screenshare)"],
+	["shortenPaths", "Shorten paths", "Collapse long absolute paths to fit the width"],
+	["quoteThinking", "Quote thinking", "Render thinking blocks as blockquotes"],
+];
+
+function openSkinPanel(
+	ctx: ExtensionCommandContext,
+	read: () => TranscriptSkinConfig,
+	apply: (patch: Partial<TranscriptSkinConfig>) => void,
+): Promise<void> {
+	return ctx.ui.custom<void>((tui, theme, _kb, done) => {
+		const current = read();
+		const items: SettingItem[] = PANEL_ROWS.map(([key, label, description]) => ({
+			id: key,
+			label,
+			description,
+			currentValue: onOff(current[key]),
+			values: ["on", "off"],
+		}));
+
+		const container = new Container();
+		container.addChild(
+			new Text(`  ${theme.fg("accent", theme.bold("Transcript skin"))}`, 0, 0),
+		);
+		container.addChild(
+			new Text(`  ${theme.fg("dim", "Display only — the model still sees the original.")}`, 0, 0),
+		);
+		container.addChild(new Text("", 0, 0));
+
+		const list = new SettingsList(
+			items,
+			items.length + 2,
+			getSettingsListTheme(),
+			(id, newValue) => {
+				apply({ [id]: newValue === "on" } as Partial<TranscriptSkinConfig>);
+			},
+			() => done(undefined),
+		);
+		container.addChild(list);
+
+		return {
+			render: (width: number) => container.render(width),
+			invalidate: () => container.invalidate(),
+			handleInput: (data: string) => {
+				list.handleInput?.(data);
+				tui.requestRender();
+			},
+		};
+	});
+}
+
 // ── Entry point ────────────────────────────────────────────────
 
 export default function transcriptSkin(pi: ExtensionAPI): void {
@@ -307,7 +430,19 @@ export default function transcriptSkin(pi: ExtensionAPI): void {
 
 	pi.registerCommand("transcript-skin", {
 		description: `Configure display-only transcript rewriting. ${USAGE}`,
+		getArgumentCompletions: completeArgs,
 		handler: async (args, ctx) => {
+			// Bare invocation in a TUI gets the panel; explicit args stay
+			// scriptable and keep working headless.
+			if (args.trim() === "" && ctx.mode === "tui" && typeof ctx.ui.custom === "function") {
+				await openSkinPanel(
+					ctx,
+					() => config,
+					(patch) => patchConfig(patch),
+				);
+				return;
+			}
+
 			const patch = parseCommandArgs(args);
 			if (patch === null) {
 				ctx.ui.notify(USAGE, "error");

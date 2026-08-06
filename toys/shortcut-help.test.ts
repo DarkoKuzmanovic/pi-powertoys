@@ -124,13 +124,10 @@ test("buildTabs keeps the primary Cheat Sheet aligned with current shortcuts and
 	const shortcutEntries = cheatSections.find((section) => section.title === "Pi shortcuts")?.entries ?? [];
 	const commandEntries = cheatSections.find((section) => section.title === "Commands")?.entries ?? [];
 
-	assert.deepEqual(shortcutEntries.find((entry) => entry.key === "Alt+7"), {
-		key: "Alt+7",
-		description: "Cycle Fusion (off→lite→full→max)",
-	});
-	for (const key of ["Alt+5", "Alt+Z", "Ctrl+Shift+P", "Ctrl+T", "Ctrl+O", "Ctrl+X", "Alt+Enter"]) {
+	for (const key of ["Alt+5", "Alt+9", "Alt+Z", "Ctrl+Shift+P", "Ctrl+T", "Ctrl+O", "Ctrl+X", "Alt+Enter"]) {
 		assert.equal(shortcutEntries.some((entry) => entry.key === key), true, `missing shortcut ${key}`);
 	}
+	assert.equal(shortcutEntries.some((entry) => entry.key === "Alt+7"), false, "stale Alt+7 (pi-fusion-mode) shortcut still listed");
 	for (const command of ["/reload", "/ss [ocr]", "/afk", "/pixoo"]) {
 		assert.equal(commandEntries.some((entry) => entry.key === command), true, `missing command ${command}`);
 	}

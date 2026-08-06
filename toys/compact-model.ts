@@ -499,7 +499,8 @@ export interface CompletionResponse {
 
 export interface CompletionRequestOptions {
 	apiKey?: string;
-	headers?: Record<string, string>;
+	/** Pi 0.84 `ProviderHeaders`: `null` marks a header for deletion. Forward unchanged to pi-ai. */
+	headers?: Record<string, string | null>;
 	maxTokens: number;
 	signal: AbortSignal;
 }
@@ -630,7 +631,7 @@ export interface FallbackModelRegistry {
 	find(provider: string, modelId: string): Model<Api> | undefined;
 	getApiKeyAndHeaders(
 		model: Model<Api>,
-	): Promise<{ ok: boolean; apiKey?: string; headers?: Record<string, string> }>;
+	): Promise<{ ok: boolean; apiKey?: string; headers?: Record<string, string | null> }>;
 }
 
 export interface FallbackModelOptions {
@@ -725,7 +726,7 @@ ${conversationText}
 
 export interface CompactionHookOptions {
 	model: Model<Api>;
-	auth: { apiKey: string; headers?: Record<string, string> };
+	auth: { apiKey: string; headers?: Record<string, string | null> };
 	conversationText: string;
 	previousSummary?: string;
 	tokensBefore: number;

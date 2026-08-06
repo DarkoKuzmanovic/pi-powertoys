@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts toys/shortcut-help.test.ts"
+    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts toys/shortcut-help.test.ts toys/transcript-skin.test.ts"
   },
   "pi": {
     "extensions": [
@@ -46,7 +46,8 @@
       "./toys/lint.ts",
       "./toys/shortcut-help.ts",
       "./toys/afk.ts",
-      "./toys/prompt-doctor.ts"
+      "./toys/prompt-doctor.ts",
+      "./toys/transcript-skin.ts"
     ]
   },
   "dependencies": {},

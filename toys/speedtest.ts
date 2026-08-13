@@ -135,10 +135,25 @@ function countContentTokens(text: string): number {
 }
 
 // --- Speedtest runner ---
+
+/**
+ * Pi 0.84 `ProviderHeaders` values are `string | null`, where `null` means
+ * "delete this header". These raw `fetch` calls have no deletion semantics, so
+ * a null would be stringified into the request as "null". Drop them instead.
+ */
+function stripNullHeaders(headers: Record<string, string | null> | undefined): Record<string, string> | undefined {
+	if (!headers) return undefined;
+	const out: Record<string, string> = {};
+	for (const [key, value] of Object.entries(headers)) {
+		if (typeof value === "string") out[key] = value;
+	}
+	return out;
+}
+
 async function runSpeedTest(
 	model: any,
 	apiKey: string | undefined,
-	extraHeaders: Record<string, string> | undefined,
+	rawExtraHeaders: Record<string, string | null> | undefined,
 	prompt: string,
 	maxTokens: number,
 ): Promise<SpeedTestResult> {
@@ -162,6 +177,8 @@ async function runSpeedTest(
 		result.error = "No API key resolved for this provider";
 		return result;
 	}
+
+	const extraHeaders = stripNullHeaders(rawExtraHeaders);
 
 	try {
 		if (api === "openai-codex-responses") {

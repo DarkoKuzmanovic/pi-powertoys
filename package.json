@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts"
+    "test": "node --test toys/startup-benchmark.test.ts toys/compact-model.test.ts toys/shortcut-help.test.ts toys/transcript-skin.test.ts"
   },
   "pi": {
     "extensions": [
@@ -45,24 +45,27 @@
       "./toys/kitty-attention.ts",
       "./toys/lint.ts",
       "./toys/shortcut-help.ts",
-      "./toys/afk.ts"
+      "./toys/afk.ts",
+      "./toys/prompt-doctor.ts",
+      "./toys/transcript-skin.ts"
     ]
   },
-  "dependencies": {
-    "@earendil-works/pi-ai": "^0.80.3"
-  },
+  "dependencies": {},
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-tui": "*"
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-coding-agent": {
       "optional": true
+    },
+    "@earendil-works/pi-ai": {
+      "optional": true
+    },
+    "@earendil-works/pi-tui": {
+      "optional": true
     }
   },
-  "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.80.3",
-    "@earendil-works/pi-tui": "^0.80.3",
-    "@types/node": "^24.13.1",
-    "typescript": "^5.8.0"
-  }
+  "devDependencies": {}
 }

@@ -50,6 +50,7 @@ function withLock<T>(fn: () => T): T {
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
 			try {
+				// shortcut: two processes that both judge one crashed lock stale can race (one may delete the other's fresh lock); locks live for milliseconds, so move to per-toy files only if this is ever seen.
 				if (Date.now() - statSync(lock).mtimeMs > 30000) unlinkSync(lock);
 			} catch (err) {
 				if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;

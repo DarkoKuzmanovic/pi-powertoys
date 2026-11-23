@@ -2,16 +2,10 @@
  * Contextual Working Message Extension
  *
  * Replaces the generic "Working" label with context-aware messages
- * based on which tool is currently executing. Optionally uses
- * Gemini 3.1 Flash Lite to generate witty, descriptive messages.
- *
- * AI messages are cached to a local JSON file, building a growing
- * database of funny messages. Respects 5 RPM rate limit.
- *
- * Uses OPENCODE_GO_API_KEY (primary) and GOOGLE_API_KEY (fallback) from environment.
+ * based on which tool is currently executing.
  *
  * Commands:
- *   /working-style       Pick or set message style: static, dynamic, ai
+ *   /working-style       Pick or set message style: static, dynamic
  *   /working-indicator   Pick or set indicator spinner style
  *
  * Settings persist in ~/.pi/agent/cache/pi-powertoys/toys.json under the "contextualWorking" key.
@@ -23,25 +17,14 @@ import type {
   WorkingIndicatorOptions,
 } from "@earendil-works/pi-coding-agent";
 import { loadToyConfig, saveToyConfig } from "./toys-config.ts";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, unlinkSync } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 // ─── Configuration ───────────────────────────────────────────────
 
-type MessageStyle = "static" | "dynamic" | "ai";
+type MessageStyle = "static" | "dynamic";
 type IndicatorStyle = string;
 type ColorAnimation = "off" | "rainbow" | "ocean" | "aurora" | "ember" | "neon" | "mist" | "dusk" | "sage" | "smoke";
-
-const PRIMARY_MODEL = "deepseek-v4-flash";
-const PRIMARY_API_BASE = "https://opencode.ai/zen/go/v1/chat/completions";
-const FALLBACK_MODEL = "gemini-3.1-flash-lite";
-const FALLBACK_API_BASE =
-  "https://generativelanguage.googleapis.com/v1beta/models";
-const CACHE_DIR = join(homedir(), ".pi", "agent", "cache", "pi-powertoys");
-const CACHE_PATH = join(CACHE_DIR, "contextual-working-cache.json");
-const RATE_LIMIT_RPM = 5;
-const RATE_WINDOW_MS = 60_000;
 
 // ─── Static Message Map ─────────────────────────────────────────
 
@@ -75,36 +58,6 @@ const TOOL_MESSAGES: Record<string, string[]> = {
   subagent: ["Delegating to agent...", "Spawning subagent..."],
   todo_write: ["Updating tasks...", "Planning work..."],
 };
-
-// Seed fallbacks — used when AI is unreachable AND cache is empty
-const SEED_MESSAGES: Record<string, string[]> = {
-  bash: ["Conjuring shell magic", "Brewing commands", "Whispering to terminal"],
-  read: ["Devouring code", "Absorbing knowledge", "Gobbling files"],
-  write: ["Manifesting code", "Inscribing wisdom", "Channeling creativity"],
-  edit: ["Performing surgery", "Stitching code", "Sculpting logic"],
-  grep: ["On the hunt", "Detective mode", "Sniffing patterns"],
-  find: ["Treasure hunting", "Charting the codebase", "Surveying lands"],
-  ls: ["Browsing aisles", "Cataloguing reality"],
-  web_search: ["Consulting oracle", "Surfing the void", "Asking the internet"],
-  web_fetch: ["Plucking pages", "Harvesting bytes", "Reeling in data"],
-  lsp_navigation: ["Teleporting through code", "Following breadcrumbs"],
-  ast_search: ["Parsing reality", "Decoding the matrix"],
-  interactive_shell: ["Summoning familiar", "Opening portal"],
-  mcp: ["Dialing other realms", "Bridging dimensions"],
-  ask_user: ["Needing wisdom", "Awaiting guidance"],
-  obsidian_retrieve: ["Searching the archives", "Unearthing notes"],
-  obsidian_write: ["Inscribing the vault", "Etching knowledge"],
-  obsidian_edit: ["Polishing notes", "Refining thoughts"],
-  subagent: ["Dispatching minion", "Rallying allies"],
-  todo_write: ["Plotting world domination", "Orchestrating chaos"],
-};
-
-const DEFAULT_SEEDS = [
-  "Dreaming electric",
-  "Pondering existence",
-  "Computing vibes",
-  "Channeling thoughts",
-];
 
 // ─── Indicator Presets ──────────────────────────────────────────
 
@@ -557,275 +510,6 @@ try {
   INDICATOR_NAMES = Object.keys(FALLBACK_INDICATORS);
 }
 
-// ─── Persistent JSON Cache ──────────────────────────────────────
-// Stores AI-generated messages per tool, growing over time.
-
-interface MessageCache {
-  messages: Record<string, string[]>;
-  lastUpdated: number;
-}
-
-let legacyCacheMigrated = false;
-
-/** One-time best-effort move of the old source-tree cache to the stable cache dir. */
-function migrateLegacyCache(): void {
-  if (legacyCacheMigrated) return;
-  legacyCacheMigrated = true;
-  try {
-    if (existsSync(CACHE_PATH)) return;
-    const legacyPath = join(dirname(new URL(import.meta.url).pathname), "contextual-working-cache.json");
-    if (!existsSync(legacyPath)) return;
-    mkdirSync(CACHE_DIR, { recursive: true });
-    copyFileSync(legacyPath, CACHE_PATH);
-    unlinkSync(legacyPath);
-  } catch {
-    /* best-effort migration — fall back to a fresh cache */
-  }
-}
-
-function loadCache(): MessageCache {
-  migrateLegacyCache();
-  try {
-    const raw = readFileSync(CACHE_PATH, "utf-8");
-    const data = JSON.parse(raw) as MessageCache;
-    if (data.messages && typeof data.messages === "object") return data;
-  } catch {
-    /* file doesn't exist or invalid JSON — start fresh */
-  }
-  return { messages: {}, lastUpdated: 0 };
-}
-
-function saveCache(cache: MessageCache): void {
-  try {
-    mkdirSync(dirname(CACHE_PATH), { recursive: true });
-    cache.lastUpdated = Date.now();
-    writeFileSync(CACHE_PATH, JSON.stringify(cache, null, "\t") + "\n");
-  } catch {
-    /* silently fail — cache is best-effort */
-  }
-}
-
-function addCachedMessage(toolName: string, message: string): void {
-  const cache = loadCache();
-  if (!cache.messages[toolName]) cache.messages[toolName] = [];
-  const pool = cache.messages[toolName]!;
-  // Dedupe — don't store identical messages
-  if (!pool.includes(message)) {
-    pool.push(message);
-    // Cap per-tool at 50 messages to prevent unbounded growth
-    if (pool.length > 50) pool.shift();
-    saveCache(cache);
-  }
-}
-
-function getCachedMessages(toolName: string): string[] | undefined {
-  const cache = loadCache();
-  return cache.messages[toolName];
-}
-
-// ─── Rate Limiter ───────────────────────────────────────────────
-// Tracks API call timestamps, respects 5 RPM.
-
-class RateLimiter {
-  private callTimes: number[] = [];
-
-  canCall(): boolean {
-    const now = Date.now();
-    // Prune timestamps older than the window
-    this.callTimes = this.callTimes.filter((t) => now - t < RATE_WINDOW_MS);
-    return this.callTimes.length < RATE_LIMIT_RPM;
-  }
-
-  recordCall(): void {
-    this.callTimes.push(Date.now());
-  }
-
-  timeUntilNextCall(): number {
-    if (this.canCall()) return 0;
-    const now = Date.now();
-    const oldest = this.callTimes[0]!;
-    return Math.max(0, RATE_WINDOW_MS - (now - oldest));
-  }
-}
-
-// ─── AI Message Generator ────────────────────────────────────────
-
-class MessageGenerator {
-  private primaryApiKey: string | null;
-  private fallbackApiKey?: string;
-  private rateLimiter = new RateLimiter();
-  private pending = new Map<string, Promise<string>>();
-
-  constructor(primaryApiKey: string | null, fallbackApiKey?: string) {
-    this.primaryApiKey = primaryApiKey;
-    this.fallbackApiKey = fallbackApiKey;
-  }
-
-  async generateMessage(
-    toolName: string,
-    toolInput?: Record<string, unknown>,
-  ): Promise<string> {
-    // Rate limit check — skip API if at limit
-    if (!this.rateLimiter.canCall()) {
-      throw new Error(
-        `Rate limited — next call in ${Math.ceil(this.rateLimiter.timeUntilNextCall() / 1000)}s`,
-      );
-    }
-
-    // Deduplicate in-flight requests
-    const cacheKey = `${toolName}:${
-      toolInput
-        ? Object.entries(toolInput)
-            .slice(0, 2)
-            .map(([k, v]) => `${k}=${String(v).slice(0, 30)}`)
-            .join("&")
-        : ""
-    }`;
-    const pending = this.pending.get(cacheKey);
-    if (pending) return pending;
-
-    const promise = this.fetchMessage(toolName, toolInput)
-      .then((msg) => {
-        this.pending.delete(cacheKey);
-        // Save AI message to persistent cache
-        addCachedMessage(toolName, msg);
-        return msg;
-      })
-      .catch((err) => {
-        this.pending.delete(cacheKey);
-        throw err;
-      });
-
-    this.pending.set(cacheKey, promise);
-    return promise;
-  }
-
-  private async fetchMessage(
-    toolName: string,
-    toolInput?: Record<string, unknown>,
-  ): Promise<string> {
-    const inputDesc = toolInput
-      ? Object.entries(toolInput)
-          .slice(0, 2)
-          .map(([k, v]) => `${k}: ${String(v).slice(0, 60)}`)
-          .join(", ")
-      : "";
-
-    const prompt = `Generate a short (2-4 words max) playful working message for a coding agent that is currently using the "${toolName}" tool${inputDesc ? ` with ${inputDesc}` : ""}. Be creative, witty, and brief. No punctuation at end. Examples: "Hunting bugs", "Decoding mysteries", "Weaving code". Reply with ONLY the message text, nothing else.`;
-
-    return this.callAI(prompt);
-  }
-
-  /** Call the AI with a custom prompt (respects rate limiter, tries primary then fallback). */
-  async callAI(prompt: string, maxTokens = 20): Promise<string> {
-    if (!this.rateLimiter.canCall()) {
-      throw new Error(
-        `Rate limited — next call in ${Math.ceil(this.rateLimiter.timeUntilNextCall() / 1000)}s`,
-      );
-    }
-    this.rateLimiter.recordCall();
-
-    // Google-only env (no primary key): go straight to the Gemini fallback —
-    // never send the fallback key to the primary (opencode.ai) endpoint (C3).
-    if (!this.primaryApiKey) {
-      if (this.fallbackApiKey) {
-        try {
-          return await this.fetchFromFallback(prompt, maxTokens);
-        } catch {
-          // fall through
-        }
-      }
-      throw new Error("AI call failed");
-    }
-
-    try {
-      return await this.fetchFromPrimary(prompt, maxTokens);
-    } catch {
-      if (this.fallbackApiKey) {
-        try {
-          return await this.fetchFromFallback(prompt, maxTokens);
-        } catch {
-          // fall through
-        }
-      }
-      throw new Error("AI call failed");
-    }
-  }
-
-  private async fetchFromPrimary(
-    prompt: string,
-    maxTokens = 20,
-  ): Promise<string> {
-    const response = await fetch(PRIMARY_API_BASE, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.primaryApiKey}`,
-      },
-      body: JSON.stringify({
-        model: PRIMARY_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: maxTokens,
-        temperature: 0.9,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenCode Go API ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const text = data.choices?.[0]?.message?.content?.trim();
-    if (!text) throw new Error("Empty response from primary");
-    return text;
-  }
-
-  private async fetchFromFallback(
-    prompt: string,
-    maxTokens = 20,
-  ): Promise<string> {
-    const url = `${FALLBACK_API_BASE}/${FALLBACK_MODEL}:generateContent?key=${this.fallbackApiKey}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: maxTokens,
-          temperature: 0.9,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini API ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!text) throw new Error("Empty response from fallback");
-    return text;
-  }
-}
-
-// ─── AI Fallback — cache-first, then seeds ─────────────────────
-
-function getAIMessage(toolName: string): string {
-  // 1. Try persistent cache (AI-generated messages from past sessions)
-  const cached = getCachedMessages(toolName);
-  if (cached && cached.length > 0) {
-    return cached[Math.floor(Math.random() * cached.length)]!;
-  }
-  // 2. Fall back to seed messages
-  const seeds = SEED_MESSAGES[toolName];
-  if (seeds) return seeds[Math.floor(Math.random() * seeds.length)]!;
-  return DEFAULT_SEEDS[Math.floor(Math.random() * DEFAULT_SEEDS.length)]!;
-}
-
 // ─── Dynamic Message Builder (no AI, just smarter static) ──────
 
 function buildDynamicMessage(
@@ -895,11 +579,10 @@ function saveWorkingConfig(
 export default function (pi: ExtensionAPI) {
   // Load persisted settings
   const persisted = loadWorkingConfig();
-  let messageStyle: MessageStyle = persisted?.messageStyle ?? "dynamic";
+  let messageStyle: MessageStyle = persisted?.messageStyle === "static" ? "static" : "dynamic";
   let indicatorIndex = 0;
   let currentIndicator: IndicatorStyle = persisted?.indicator ?? "braille";
   indicatorIndex = INDICATOR_NAMES.indexOf(currentIndicator);
-  let generator: MessageGenerator | null = null;
   let colorAnimation: ColorAnimation = persisted?.colorAnimation ?? "off";
   let colorTimer: ReturnType<typeof setInterval> | null = null;
   let colorPhase = 0;
@@ -924,32 +607,12 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  // Initialize AI generator — OpenCode Go (primary) + Gemini (fallback)
-  const opencodeGoApiKey = process.env.OPENCODE_GO_API_KEY;
-  const googleApiKey = process.env.GOOGLE_API_KEY;
-  if (opencodeGoApiKey) {
-    generator = new MessageGenerator(opencodeGoApiKey, googleApiKey);
-  } else if (googleApiKey) {
-    // Google-only: pass the key as the FALLBACK (Gemini) arg, not primary —
-    // otherwise it is sent to opencode.ai and 401s every session, leaking the key (C3).
-    generator = new MessageGenerator(null, googleApiKey);
-  }
-
-  const providerTag = () =>
-    messageStyle === "ai"
-      ? process.env.OPENCODE_GO_API_KEY
-        ? "deepseek-v4-flash"
-        : process.env.GOOGLE_API_KEY
-          ? "gemini"
-          : "cache"
-      : messageStyle;
-
   const applyIndicator = (ctx: ExtensionContext) => {
     const opts = INDICATORS[currentIndicator];
     ctx.ui.setWorkingIndicator(opts);
     ctx.ui.setStatus(
       "contextual-working",
-      `${[ctx.ui.theme.fg("accent", currentIndicator), ctx.ui.theme.fg("accent", providerTag())].filter(Boolean).join(" · ")}`
+      `${[ctx.ui.theme.fg("accent", currentIndicator), ctx.ui.theme.fg("accent", messageStyle)].filter(Boolean).join(" · ")}`
     );
   };
 
@@ -972,26 +635,7 @@ export default function (pi: ExtensionAPI) {
         message = buildDynamicMessage(toolName, toolInput);
         break;
       }
-      case "ai": {
-        if (!generator) {
-          // No API key — use cached or seed messages
-          message = getAIMessage(toolName);
-        } else {
-          // Try Gemini (rate-limited), fallback to cache/seeds on failure
-          const fallback = getAIMessage(toolName);
-          try {
-            message = await Promise.race([
-              generator.generateMessage(toolName, toolInput),
-              new Promise<string>((resolve) =>
-                setTimeout(() => resolve(fallback), 2000),
-              ),
-            ]);
-          } catch {
-            message = fallback;
-          }
-        }
-        break;
-      }
+
     }
 
     lastMessage = message;
@@ -1042,9 +686,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("turn_end", async (event, ctx) => {
     stopColorAnimation();
     if (autoNameDone || event.turnIndex > 0) return;
-    // Auto-naming is purely cosmetic — skip in non-interactive runs (e.g. -p mode,
-    // subagent dispatches). The handler awaits an AI call that can outlive the
-    // session, and post-await pi.setSessionName() would throw "stale ctx".
+    // Auto-naming is purely cosmetic — skip in non-interactive runs.
     if (!ctx.hasUI) return;
     autoNameDone = true;
 
@@ -1053,35 +695,15 @@ export default function (pi: ExtensionAPI) {
 
     const userPrompt = firstPrompt;
 
-    // Generate name via AI (same provider chain as working-style ai)
-    const namingPrompt = `Generate a very short session name (3-5 words max, no quotes, no punctuation) for a coding session that started with this user request: "${userPrompt.slice(0, 200)}". The name should be concise and descriptive, like a git branch name or document title. Reply with ONLY the name, nothing else.`;
-
-    let name = "";
-    if (generator) {
-      try {
-        name = await Promise.race([
-          generator.callAI(namingPrompt, 30),
-          new Promise<string>((resolve) => setTimeout(() => resolve(""), 3000)),
-        ]);
-      } catch {
-        name = "";
-      }
-    }
-
-    // Fallback: derive name from first few words of user prompt
-    if (!name) {
-      const words = userPrompt
-        .replace(/[^\w\s-]/g, "")
-        .split(/\s+/)
-        .filter(Boolean);
-      name = words.slice(0, 4).join(" ");
-    }
+    const words = userPrompt
+      .replace(/[^\w\s-]/g, "")
+      .split(/\s+/)
+      .filter(Boolean);
+    let name = words.slice(0, 4).join(" ");
 
     // Cap length and apply
     if (name.length > 60) name = name.slice(0, 57) + "...";
     if (name) {
-      // Wrap in try/catch — even with the hasUI guard, an interactive session
-      // can be replaced/closed during the AI call, invalidating the pi handle.
       try {
         pi.setSessionName(name);
       } catch {
@@ -1093,16 +715,16 @@ export default function (pi: ExtensionAPI) {
 
   // ─── Commands ─────────────────────────────────────────────
 
-  const STYLE_NAMES: MessageStyle[] = ["static", "dynamic", "ai"];
+  const STYLE_NAMES: MessageStyle[] = ["static", "dynamic"];
   let styleIndex = STYLE_NAMES.indexOf(messageStyle);
 
   pi.registerCommand("working-style", {
-    description: "Pick message style: static, dynamic, or ai.",
+    description: "Pick message style: static or dynamic.",
     handler: async (args, ctx) => {
       const arg = args.trim().toLowerCase();
 
-      if (arg && arg !== "static" && arg !== "dynamic" && arg !== "ai") {
-        ctx.ui.notify(`Usage: /working-style [static|dynamic|ai]`, "error");
+      if (arg && arg !== "static" && arg !== "dynamic") {
+        ctx.ui.notify(`Usage: /working-style [static|dynamic]`, "error");
         return;
       }
 
@@ -1110,26 +732,16 @@ export default function (pi: ExtensionAPI) {
         messageStyle = arg as MessageStyle;
         styleIndex = STYLE_NAMES.indexOf(messageStyle);
       } else {
-        const aiNote = !generator ? " (cache/seeds only)" : "";
         const choice = await ctx.ui.select("Message Style", [
           `📋 static — Rotating messages from a fixed list`,
           `🔍 dynamic — Adds context from tool inputs`,
-          `🤖 ai — AI-generated witty messages${aiNote}`,
         ]);
         if (choice === undefined) return; // cancelled
 
         if (choice.startsWith("📋")) messageStyle = "static";
         else if (choice.startsWith("🔍")) messageStyle = "dynamic";
-        else if (choice.startsWith("🤖")) messageStyle = "ai";
 
         styleIndex = STYLE_NAMES.indexOf(messageStyle);
-      }
-
-      if (messageStyle === "ai" && !generator) {
-        ctx.ui.notify(
-          "No OPENCODE_GO_API_KEY or GOOGLE_API_KEY — using cached/seed messages only.",
-          "warning",
-        );
       }
 
       applyIndicator(ctx);

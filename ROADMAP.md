@@ -11,5 +11,4 @@ Status: complete
 
 ## Planned
 
-- **Argument completions for `/afk`** — complete `on` / `off` via `getArgumentCompletions`; reuse the `transcript-skin` completer/parser round-trip test shape.
 - **Argument completions for `/working-style`, `/working-indicator`, and `/working-color`** — complete each from the `STYLE_NAMES` / `COLOR_NAMES` const arrays that already exist in `toys/contextual-working.ts`; reuse the `transcript-skin` completer/parser round-trip test shape.

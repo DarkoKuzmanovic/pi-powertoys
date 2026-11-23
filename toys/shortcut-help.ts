@@ -70,7 +70,6 @@ const PI_SHORTCUTS: Entry[] = [
 	{ key: "Alt+1", description: "This cheat sheet" },
 	{ key: "Alt+5", description: "Toggle Pixoo display" },
 	{ key: "Alt+9", description: "Cycle Ponytail (off→lite→full→ultra)" },
-	{ key: "Alt+Z", description: "Toggle AFK commit-signing mode" },
 	{ key: "Ctrl+P", description: "Cycle scoped models" },
 	{ key: "Ctrl+Shift+P", description: "Cycle scoped models backward" },
 	{ key: "Shift+Tab", description: "Cycle thinking level" },
@@ -99,7 +98,6 @@ const COMMANDS: Entry[] = [
 	{ key: "/hud hint cycle", description: "Rotate footer hints continuously" },
 	{ key: "/color <name>", description: "Tag session in tree view" },
 	{ key: "/ss [ocr]", description: "Capture desktop region into context" },
-	{ key: "/afk", description: "Show or toggle commit-signing AFK mode" },
 	{ key: "/pixoo", description: "Control Pixoo usage display" },
 ];
 

@@ -18,7 +18,6 @@ A curated collection of standalone [Pi](https://github.com/earendil-works/pi-cod
 | **kitty-attention** | `/kitty-attention` | Sends Kitty terminal OSC 99 desktop popups and/or terminal bell when a Pi turn finishes, `ask_user` asks a question, or common approval/interactive tools need user attention. |
 | **lint** | `/lint` | Auto-detects linting for Pi extension TypeScript/JavaScript via Biome or Python via Ruff. Use cautiously with `--fix` because it mutates files. |
 | **shortcut-help** | `/shortcuts`, `alt+1` | Floating three-tab cheat sheet for Pi shortcuts/commands, prompt gallery, and shorthands. Terminal launchers are read on demand from tagged mappings in `~/.config/kitty/kitty.conf`, so displayed keys match Kitty's source of truth. |
-| **afk** | `/afk`, `alt+z` | Away-from-keyboard toggle: suspends git commit signing (`commit.gpgsign=false`) so a GPG pinentry prompt can't stall the agent while you're away; `/afk off` restores the previous value. A footer glyph shows state (keyboard vs. struck-through keyboard); `alt+z` toggles without typing. |
 
 ## Archived toys
 
@@ -66,7 +65,7 @@ Persistent toy settings are stored in a single file: `~/.pi/agent/cache/pi-power
 | `contextualWorking` | contextual-working | `{ "messageStyle": "dynamic", "indicator": "braille" }` |
 | `kittyAttention` | kitty-attention | `{ "enabled": true, "popup": true, "bell": true, "notifyOnDone": true }` |
 
-Legacy `~/.pi/agent/toys.json` and older per-toy JSON files are automatically migrated into `cache/pi-powertoys/toys.json` on first load and removed. The former `circuitBreaker` setting is copied by `pi-guardian` into `~/.pi/agent/cache/pi-guardian/guardian.json` on first use.
+Legacy `~/.pi/agent/toys.json` and older per-toy JSON files are automatically migrated into `cache/pi-powertoys/toys.json` on first load and removed after the merged settings are verified; malformed files are retained. The former `circuitBreaker` setting is copied by `pi-guardian` into `~/.pi/agent/cache/pi-guardian/guardian.json` on first use.
 
 Run the relevant `/command` to change any setting via TUI picker, or edit `cache/pi-powertoys/toys.json` directly.
 

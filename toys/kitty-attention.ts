@@ -150,7 +150,7 @@ export default function kittyAttention(pi: ExtensionAPI): void {
 		}
 	});
 
-	pi.on("agent_end", () => {
+	pi.on("agent_settled", () => {
 		emit("done", "Pi turn complete", "The LLM turn has finished.");
 	});
 

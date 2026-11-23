@@ -81,7 +81,7 @@ export default function contextExtension(pi: ExtensionAPI) {
 					assistantCount++;
 					if (Array.isArray(msg.content)) {
 						toolCallCount += msg.content.filter(
-							(c: any) => c.type === "tool_use",
+							(c: any) => c.type === "toolCall",
 						).length;
 					}
 					const reasoning = (msg as any).usage?.reasoning;
@@ -179,7 +179,7 @@ export default function contextExtension(pi: ExtensionAPI) {
 				if (compactions.length > 0) {
 					const last = compactions[compactions.length - 1];
 					rightText.push(
-						theme.fg("dim", `Last compaction saved ~${fmtK(last.tokensBefore)} tokens`),
+						theme.fg("dim", `Size before compaction: ~${fmtK(last.tokensBefore)} tokens`),
 					);
 				}
 

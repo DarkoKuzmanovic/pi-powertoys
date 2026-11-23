@@ -677,7 +677,7 @@ export default function (pi: ExtensionAPI) {
 
   // Capture the user's first prompt before the agent starts
   pi.on("before_agent_start", (event) => {
-    if (firstPrompt === null && event.prompt) {
+    if (event.messageType === "user" && firstPrompt === null && event.prompt) {
       firstPrompt = event.prompt;
     }
   });

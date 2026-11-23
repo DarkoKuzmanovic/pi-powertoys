@@ -19,7 +19,8 @@ test("legacy ai style uses dynamic messages and local naming without network", (
       extension(pi);
       const ctx = { hasUI: true, sessionManager: { getSessionName: () => undefined }, ui: { setWorkingIndicator: () => {}, setStatus: (_, v) => status = v, setWorkingMessage: v => message = v, theme: { fg: (_, v) => v }, notify: () => {} } };
       await events.session_start({}, ctx);
-      await events.before_agent_start({ prompt: "Fix this local privacy issue please" }, ctx);
+      await events.before_agent_start({ messageType: "custom", prompt: "ignore this custom message" }, ctx);
+      await events.before_agent_start({ messageType: "user", prompt: "Fix this local privacy issue please" }, ctx);
       await events.tool_execution_start({ toolName: "read", args: { path: "/work/secret.txt" } }, ctx);
       await events.turn_end({ turnIndex: 0 }, ctx);
       console.log(JSON.stringify({ name, message, calls, status }));

@@ -8,7 +8,7 @@
  * and the old files are removed.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, openSync, closeSync, renameSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -38,10 +38,44 @@ function loadAll(): ToysConfig {
 	return {};
 }
 
+function withLock<T>(fn: () => T): T {
+	mkdirSync(dirname(CONFIG_PATH), { recursive: true });
+	const lock = `${CONFIG_PATH}.lock`;
+	const deadline = Date.now() + 5000;
+	let fd: number;
+	while (true) {
+		try {
+			fd = openSync(lock, "wx");
+			break;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+			try {
+				if (Date.now() - statSync(lock).mtimeMs > 30000) unlinkSync(lock);
+			} catch (err) {
+				if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+			}
+			if (Date.now() >= deadline) throw new Error("Timed out waiting for toys config lock");
+			Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+		}
+	}
+	try {
+		return fn();
+	} finally {
+		closeSync(fd);
+		unlinkSync(lock);
+	}
+}
+
 function saveAll(config: ToysConfig): void {
-	const dir = dirname(CONFIG_PATH);
-	mkdirSync(dir, { recursive: true });
-	writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf-8");
+	const temp = `${CONFIG_PATH}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+	try {
+		writeFileSync(temp, JSON.stringify(config, null, 2) + "\n", { encoding: "utf-8", flag: "wx" });
+		renameSync(temp, CONFIG_PATH);
+	} finally {
+		try { unlinkSync(temp); } catch (err) {
+			if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+		}
+	}
 }
 
 // ── Per-toy API ────────────────────────────────────────────────
@@ -58,16 +92,20 @@ export function loadToyConfig<T>(key: string): T | undefined {
 /** Save a toy's config section (merges into existing file). */
 export function saveToyConfig(key: string, value: unknown): void {
 	migrateLegacy();
-	const config = loadAll();
-	config[key] = value;
-	saveAll(config);
+	withLock(() => {
+		const config = loadAll();
+		config[key] = value;
+		saveAll(config);
+	});
 }
 
 /** Remove a toy's config section. */
 export function removeToyConfig(key: string): void {
-	const config = loadAll();
-	delete config[key];
-	saveAll(config);
+	withLock(() => {
+		const config = loadAll();
+		delete config[key];
+		saveAll(config);
+	});
 }
 
 // ── Legacy migration (runs once per key) ────────────────────────
@@ -76,8 +114,7 @@ let migrated = false;
 
 function migrateLegacy(): void {
 	if (migrated) return;
-	migrated = true;
-
+	withLock(() => {
 	const config = loadAll();
 	let changed = false;
 
@@ -120,4 +157,6 @@ function migrateLegacy(): void {
 	}
 
 	if (changed) saveAll(config);
+	migrated = true;
+	});
 }

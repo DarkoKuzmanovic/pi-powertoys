@@ -1,6 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { withStatusChip } from "./toy-kit.ts";
-import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -10,13 +13,13 @@ const TIMEOUT_MS = 30_000;
 
 interface LintTarget {
 	tool: "biome" | "ruff";
-	cmd: string;
+	command: string;
+	args: string[];
 	cwd: string;
 	label: string;
 }
 
 function detectTarget(cwd: string, pathArg: string, fix: boolean): LintTarget | null {
-	const fixFlag = fix ? " --fix" : "";
 
 	// Check if cwd is a Python project
 	const hasPyproject = existsSync(join(cwd, "pyproject.toml"));
@@ -35,7 +38,8 @@ function detectTarget(cwd: string, pathArg: string, fix: boolean): LintTarget | 
 	if (isPython) {
 		return {
 			tool: "ruff",
-			cmd: `ruff check${fixFlag} --statistics ${target}`,
+			command: "ruff",
+			args: ["check", ...(fix ? ["--fix"] : []), "--statistics", "--", target],
 			cwd,
 			label: `ruff → ${cwd}`,
 		};
@@ -44,10 +48,10 @@ function detectTarget(cwd: string, pathArg: string, fix: boolean): LintTarget | 
 	if (isTS) {
 		const biomeDir = hasBiomeJson ? cwd : EXTENSIONS_DIR;
 		const checkTarget = pathArg ? join(cwd, pathArg) : cwd;
-		const writFlag = fix ? " --write" : "";
 		return {
 			tool: "biome",
-			cmd: `bunx --bun @biomejs/biome check${writFlag} --reporter=summary "${checkTarget}"`,
+			command: "bunx",
+			args: ["--bun", "@biomejs/biome", "check", ...(fix ? ["--write"] : []), "--reporter=summary", "--", checkTarget],
 			cwd: biomeDir,
 			label: `biome → ${checkTarget}`,
 		};
@@ -57,7 +61,8 @@ function detectTarget(cwd: string, pathArg: string, fix: boolean): LintTarget | 
 	if (!pathArg && hasPackageJson) {
 		return {
 			tool: "biome",
-			cmd: `bunx --bun @biomejs/biome check${fix ? " --write" : ""} --reporter=summary "${cwd}"`,
+			command: "bunx",
+			args: ["--bun", "@biomejs/biome", "check", ...(fix ? ["--write"] : []), "--reporter=summary", "--", cwd],
 			cwd,
 			label: `biome → ${cwd}`,
 		};
@@ -108,35 +113,34 @@ export default function lintExtension(pi: ExtensionAPI) {
 			await withStatusChip(ctx, "lint", async () => {
 				ctx.ui.setStatus("lint", `🔍 ${target.tool} → linting...`);
 				try {
-					const output = execSync(target.cmd, {
+					const { stdout: output } = await execFileAsync(target.command, target.args, {
 						cwd: target.cwd,
 						timeout: TIMEOUT_MS,
 						encoding: "utf-8",
-						stdio: ["pipe", "pipe", "pipe"],
 					});
 					ctx.ui.notify(`✅ ${target.tool}: no issues found`, "info");
 					if (output.trim()) ctx.ui.notify(output.trim().slice(0, 1000), "info");
 				} catch (err: unknown) {
-					const e = err as { stdout?: string; stderr?: string; status?: number };
+					const e = err as { stdout?: string; stderr?: string; code?: number };
 					const out = [e.stdout, e.stderr].filter(Boolean).join("\n").trim();
 
-					if (target.tool === "biome" && e.status === 1) {
+					if (target.tool === "biome" && e.code === 1) {
 						const { errors, warnings } = parseBiomeResult(out);
 						ctx.ui.notify(
 							`⚠️ biome: ${errors} errors, ${warnings} warnings`,
 							errors !== "0" ? "error" : "warning",
 						);
-					} else if (target.tool === "ruff" && e.status === 1) {
+					} else if (target.tool === "ruff" && e.code === 1) {
 						const { errors, fixable } = parseRuffResult(out);
 						ctx.ui.notify(
 							`⚠️ ruff: ${errors} issues (${fixable} fixable with --fix)`,
 							"warning",
 						);
 					} else {
-						ctx.ui.notify(`${target.tool} failed (exit ${e.status})`, "error");
+						ctx.ui.notify(`${target.tool} failed (exit ${e.code})`, "error");
 					}
 
-					if (out) ctx.ui.notify(out.slice(0, 1000), e.status === 1 ? "warning" : "error");
+					if (out) ctx.ui.notify(out.slice(0, 1000), e.code === 1 ? "warning" : "error");
 				}
 			});
 		},

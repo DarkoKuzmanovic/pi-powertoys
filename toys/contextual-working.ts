@@ -674,8 +674,6 @@ export default function (pi: ExtensionAPI) {
   // No reset on tool_execution_end or agent_end — the message persists
 
   // Capture the user's first prompt before the agent starts
-
-  // Capture the user's first prompt before the agent starts
   pi.on("before_agent_start", (event) => {
     if (event.messageType === "user" && firstPrompt === null && event.prompt) {
       firstPrompt = event.prompt;
@@ -688,10 +686,11 @@ export default function (pi: ExtensionAPI) {
     if (autoNameDone || event.turnIndex > 0) return;
     // Auto-naming is purely cosmetic — skip in non-interactive runs.
     if (!ctx.hasUI) return;
+    // A custom-message run has no user prompt yet; keep the chance for the next user run.
+    if (!firstPrompt) return;
     autoNameDone = true;
 
     if (ctx.sessionManager.getSessionName()) return;
-    if (!firstPrompt) return;
 
     const userPrompt = firstPrompt;
 
@@ -711,7 +710,6 @@ export default function (pi: ExtensionAPI) {
       }
     }
   });
-  // until the next tool updates it.
 
   // ─── Commands ─────────────────────────────────────────────
 

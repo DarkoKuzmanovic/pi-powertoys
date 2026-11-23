@@ -19,7 +19,7 @@ test("legacy ai style uses dynamic messages and local naming without network", (
       extension(pi);
       const ctx = { hasUI: true, sessionManager: { getSessionName: () => undefined }, ui: { setWorkingIndicator: () => {}, setStatus: (_, v) => status = v, setWorkingMessage: v => message = v, theme: { fg: (_, v) => v }, notify: () => {} } };
       await events.session_start({}, ctx);
-      await events.before_agent_start({ messageType: "custom", prompt: "ignore this custom message" }, ctx);
+      await events.before_agent_start({ messageType: "custom", message: { customType: "intercom", content: "ignore this custom message" } }, ctx);
       await events.before_agent_start({ messageType: "user", prompt: "Fix this local privacy issue please" }, ctx);
       await events.tool_execution_start({ toolName: "read", args: { path: "/work/secret.txt" } }, ctx);
       await events.turn_end({ turnIndex: 0 }, ctx);
@@ -31,5 +31,27 @@ test("legacy ai style uses dynamic messages and local naming without network", (
     assert.deepEqual(result, { name: "Fix this local privacy", message: "Reading secret.txt...", calls: 0, status: "braille · dynamic" });
     const source = readFileSync(new URL("./contextual-working.ts", import.meta.url), "utf8");
     assert.doesNotMatch(source, /OPENCODE_GO_API_KEY|GOOGLE_API_KEY/);
+  } finally { rmSync(home, { recursive: true, force: true }); }
+});
+
+test("a finished custom-message run does not use up session naming", () => {
+  const home = mkdtempSync(join(tmpdir(), "working-test-"));
+  try {
+    const script = `
+      import extension from ${JSON.stringify(new URL("./contextual-working.ts", import.meta.url).href)};
+      const events = {}; let name;
+      const pi = { on: (n, f) => events[n] = f, registerCommand: () => {}, setSessionName: n => name = n };
+      extension(pi);
+      const ctx = { hasUI: true, sessionManager: { getSessionName: () => name }, ui: { setWorkingIndicator: () => {}, setStatus: () => {}, setWorkingMessage: () => {}, theme: { fg: (_, v) => v }, notify: () => {} } };
+      await events.session_start({}, ctx);
+      await events.before_agent_start({ messageType: "custom", message: { customType: "intercom", content: "ping" } }, ctx);
+      await events.turn_end({ turnIndex: 0 }, ctx);
+      await events.before_agent_start({ messageType: "user", prompt: "Fix this local privacy issue please" }, ctx);
+      await events.turn_end({ turnIndex: 0 }, ctx);
+      console.log(JSON.stringify({ name }));
+    `;
+    const run = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", env: { ...process.env, HOME: home } });
+    assert.equal(run.status, 0, run.stderr);
+    assert.deepEqual(JSON.parse(run.stdout), { name: "Fix this local privacy" });
   } finally { rmSync(home, { recursive: true, force: true }); }
 });

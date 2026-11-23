@@ -65,7 +65,7 @@ Persistent toy settings are stored in a single file: `~/.pi/agent/cache/pi-power
 | `contextualWorking` | contextual-working | `{ "messageStyle": "dynamic", "indicator": "braille" }` |
 | `kittyAttention` | kitty-attention | `{ "enabled": true, "popup": true, "bell": true, "notifyOnDone": true }` |
 
-Legacy `~/.pi/agent/toys.json` and older per-toy JSON files are automatically migrated into `cache/pi-powertoys/toys.json` on first load and removed. The former `circuitBreaker` setting is copied by `pi-guardian` into `~/.pi/agent/cache/pi-guardian/guardian.json` on first use.
+Legacy `~/.pi/agent/toys.json` and older per-toy JSON files are automatically migrated into `cache/pi-powertoys/toys.json` on first load and removed after the merged settings are verified; malformed files are retained. The former `circuitBreaker` setting is copied by `pi-guardian` into `~/.pi/agent/cache/pi-guardian/guardian.json` on first use.
 
 Run the relevant `/command` to change any setting via TUI picker, or edit `cache/pi-powertoys/toys.json` directly.
 

@@ -115,48 +115,40 @@ let migrated = false;
 function migrateLegacy(): void {
 	if (migrated) return;
 	withLock(() => {
-	const config = loadAll();
-	let changed = false;
+		const config = loadAll();
+		const imported: string[] = [];
 
-	if (existsSync(LEGACY_TOYS_PATH)) {
-		try {
-			const raw = JSON.parse(readFileSync(LEGACY_TOYS_PATH, "utf-8"));
-			if (raw && typeof raw === "object") {
-				for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-					if (config[key] === undefined) {
-						config[key] = value;
-						changed = true;
+		if (existsSync(LEGACY_TOYS_PATH)) {
+			try {
+				const raw = JSON.parse(readFileSync(LEGACY_TOYS_PATH, "utf-8"));
+				if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+					for (const [key, value] of Object.entries(raw)) {
+						if (config[key] === undefined) config[key] = value;
 					}
+					imported.push(LEGACY_TOYS_PATH);
 				}
+			} catch { /* corrupt legacy root config — leave it in place */ }
+		}
+
+		for (const [key, legacyPath] of Object.entries(LEGACY)) {
+			if (config[key] !== undefined || !existsSync(legacyPath)) continue;
+			try {
+				const raw = JSON.parse(readFileSync(legacyPath, "utf-8"));
+				if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+					config[key] = raw;
+					imported.push(legacyPath);
+				}
+			} catch { /* corrupt legacy file — leave it in place */ }
+		}
+
+		if (imported.length) {
+			saveAll(config);
+			const saved = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+			if (JSON.stringify(saved) !== JSON.stringify(config)) throw new Error("Toy config migration verification failed");
+			for (const path of imported) {
+				try { unlinkSync(path); } catch { /* can't delete — not critical */ }
 			}
-		} catch { /* corrupt legacy root config — skip */ }
-
-		try {
-			unlinkSync(LEGACY_TOYS_PATH);
-		} catch { /* can't delete — not critical */ }
-	}
-
-	for (const [key, legacyPath] of Object.entries(LEGACY)) {
-		// Skip if already migrated (key exists in cache/pi-powertoys/toys.json)
-		if (config[key] !== undefined) continue;
-		// Skip if legacy file doesn't exist
-		if (!existsSync(legacyPath)) continue;
-
-		try {
-			const raw = JSON.parse(readFileSync(legacyPath, "utf-8"));
-			if (raw && typeof raw === "object") {
-				config[key] = raw;
-				changed = true;
-			}
-		} catch { /* corrupt legacy file — skip */ }
-
-		// Remove the legacy file
-		try {
-			unlinkSync(legacyPath);
-		} catch { /* can't delete — not critical */ }
-	}
-
-	if (changed) saveAll(config);
-	migrated = true;
+		}
+		migrated = true;
 	});
 }

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 test("concurrent saves wait for lock and retain both keys", async () => {
 	const home = mkdtempSync(join(tmpdir(), "toys-config-"));
@@ -25,4 +25,28 @@ test("concurrent saves wait for lock and retain both keys", async () => {
 		await Promise.all(exited);
 		rmSync(home, { recursive: true, force: true });
 	}
+});
+
+
+test("migration retains malformed files and verifies imported settings before deleting", () => {
+	const home = mkdtempSync(join(tmpdir(), "toys-migrate-"));
+	const agent = join(home, ".pi/agent");
+	mkdirSync(agent, { recursive: true });
+	const legacy = join(agent, "toys.json");
+	const malformed = join(agent, "compact-model.json");
+	writeFileSync(legacy, JSON.stringify({ example: { enabled: true }, afk: { active: true } }));
+	writeFileSync(malformed, "{");
+	const run = () => spawnSync(process.execPath, ["--input-type=module", "-e", `import { loadToyConfig } from ${JSON.stringify(new URL("./toys-config.ts", import.meta.url).href)}; try { loadToyConfig("example"); } catch { process.exitCode = 2; }`], { env: { ...process.env, HOME: home }, encoding: "utf8" });
+	try {
+		const config = join(agent, "cache/pi-powertoys/toys.json");
+		mkdirSync(config, { recursive: true });
+		assert.equal(run().status, 2);
+		assert.equal(existsSync(legacy), true, "valid legacy file lost after failed save");
+		assert.equal(existsSync(malformed), true, "malformed legacy file was deleted");
+		rmSync(config, { recursive: true });
+		assert.equal(run().status, 0);
+		assert.equal(existsSync(legacy), false);
+		assert.equal(existsSync(malformed), true);
+		assert.deepEqual(JSON.parse(readFileSync(config, "utf8")), { example: { enabled: true }, afk: { active: true } });
+	} finally { rmSync(home, { recursive: true, force: true }); }
 });

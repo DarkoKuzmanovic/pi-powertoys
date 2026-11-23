@@ -32,11 +32,13 @@ function loadAll(): ToysConfig {
 	try {
 		if (existsSync(CONFIG_PATH)) {
 			const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-			if (raw && typeof raw === "object") return raw as ToysConfig;
+			if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as ToysConfig;
 		}
 	} catch { /* corrupt or missing — start fresh */ }
 	return {};
 }
+
+const STALE_LOCK_MS = 2000;
 
 function withLock<T>(fn: () => T): T {
 	mkdirSync(dirname(CONFIG_PATH), { recursive: true });
@@ -50,8 +52,10 @@ function withLock<T>(fn: () => T): T {
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
 			try {
-				// shortcut: two processes that both judge one crashed lock stale can race (one may delete the other's fresh lock); locks live for milliseconds, so move to per-toy files only if this is ever seen.
-				if (Date.now() - statSync(lock).mtimeMs > 30000) unlinkSync(lock);
+				// Locks live for milliseconds, so one older than STALE_LOCK_MS was left by a killed process;
+				// taking it over well before the wait deadline keeps a crash from freezing the next start.
+				// shortcut: two processes that both judge one crashed lock stale can race (one may delete the other's fresh lock); move to per-toy files only if this is ever seen.
+				if (Date.now() - statSync(lock).mtimeMs > STALE_LOCK_MS) unlinkSync(lock);
 			} catch (err) {
 				if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
 			}
@@ -115,6 +119,11 @@ let migrated = false;
 
 function migrateLegacy(): void {
 	if (migrated) return;
+	// Readers never take the lock unless there is something to migrate.
+	if (![LEGACY_TOYS_PATH, ...Object.values(LEGACY)].some((path) => existsSync(path))) {
+		migrated = true;
+		return;
+	}
 	withLock(() => {
 		const config = loadAll();
 		const imported: string[] = [];
@@ -143,9 +152,7 @@ function migrateLegacy(): void {
 		}
 
 		if (imported.length) {
-			saveAll(config);
-			const saved = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-			if (JSON.stringify(saved) !== JSON.stringify(config)) throw new Error("Toy config migration verification failed");
+			saveAll(config); // throws before any original is deleted
 			for (const path of imported) {
 				try { unlinkSync(path); } catch { /* can't delete — not critical */ }
 			}

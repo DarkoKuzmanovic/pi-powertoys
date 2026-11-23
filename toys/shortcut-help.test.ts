@@ -86,38 +86,6 @@ test("buildTabs shows the fallback notice without a terminal launchers section",
 	);
 });
 
-test("buildTabs includes Herdr custom bindings before standard shortcuts", () => {
-	const herdrTab = buildTabs({ entries: [] }).find((tab) => tab.label === "🧭 Herdr");
-
-	assert.deepEqual(herdrTab?.sections.map((section) => section.title), [
-		"Our direct bindings",
-		"Standard Herdr shortcuts",
-	]);
-	assert.deepEqual(herdrTab?.sections[0]?.entries, [
-		{ key: "Ctrl+1 / 3", description: "Split pane down / right" },
-		{ key: "Ctrl+2/4/6/8", description: "Focus down / left / right / up" },
-		{ key: "Ctrl+5", description: "Return to last focused pane" },
-		{ key: "Ctrl+7 / 9", description: "Previous / next agent" },
-		{ key: "Ctrl+0", description: "Close focused pane" },
-		{ key: "Ctrl+Shift+1", description: "Enter resize mode" },
-		{ key: "Ctrl+Shift+3", description: "Open full session navigator" },
-		{ key: "Ctrl+Shift+4 / 6", description: "Previous / next tab" },
-		{ key: "Ctrl+Shift+5", description: "Toggle focused pane zoom" },
-		{ key: "Ctrl+Shift+7 / 9", description: "Previous / next workspace" },
-	]);
-	assert.deepEqual(herdrTab?.sections[1]?.entries, [
-		{ key: "Ctrl+B, ?", description: "Show active Herdr keybindings" },
-		{ key: "Ctrl+B, C", description: "Create a new tab" },
-		{ key: "Ctrl+B, Shift+N", description: "Create a new workspace" },
-		{ key: "Ctrl+B, W", description: "Open workspace picker" },
-		{ key: "Ctrl+B, E", description: "Edit focused pane scrollback" },
-		{ key: "Ctrl+B, O", description: "Open notification target" },
-		{ key: "Ctrl+B, Shift+G", description: "Create a worktree workspace" },
-		{ key: "Ctrl+B, B", description: "Toggle sidebar" },
-		{ key: "Ctrl+B, Q", description: "Detach; leave session running" },
-		{ key: "Ctrl+B, Shift+R", description: "Reload Herdr configuration" },
-	]);
-});
 
 test("buildTabs keeps the primary Cheat Sheet aligned with current shortcuts and commands", () => {
 	const cheatSections = buildTabs({ entries: [] })[0]?.sections ?? [];

@@ -1,6 +1,6 @@
 /**
- * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with three
- * tabs: local shortcuts + slash commands; Herdr shortcuts; and the prompt gallery
+ * Shortcut & Command Cheat Sheet — Alt+1 shows a floating overlay with two
+ * tabs: local shortcuts + slash commands, and the prompt gallery
  * (adapted from ~/.pi/agent/prompts/gallery.md). Tab cycles tabs; any other key dismisses.
  */
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
@@ -158,43 +158,6 @@ const GALLERY_TAB: Tab = {
 	sections: GALLERY_SECTIONS,
 };
 
-const HERDR_TAB: Tab = {
-	label: "🧭 Herdr",
-	sections: [
-		{
-			title: "Our direct bindings",
-			keyWidth: 20,
-			entries: [
-				{ key: "Ctrl+1 / 3", description: "Split pane down / right" },
-				{ key: "Ctrl+2/4/6/8", description: "Focus down / left / right / up" },
-				{ key: "Ctrl+5", description: "Return to last focused pane" },
-				{ key: "Ctrl+7 / 9", description: "Previous / next agent" },
-				{ key: "Ctrl+0", description: "Close focused pane" },
-				{ key: "Ctrl+Shift+1", description: "Enter resize mode" },
-				{ key: "Ctrl+Shift+3", description: "Open full session navigator" },
-				{ key: "Ctrl+Shift+4 / 6", description: "Previous / next tab" },
-				{ key: "Ctrl+Shift+5", description: "Toggle focused pane zoom" },
-				{ key: "Ctrl+Shift+7 / 9", description: "Previous / next workspace" },
-			],
-		},
-		{
-			title: "Standard Herdr shortcuts",
-			keyWidth: 20,
-			entries: [
-				{ key: "Ctrl+B, ?", description: "Show active Herdr keybindings" },
-				{ key: "Ctrl+B, C", description: "Create a new tab" },
-				{ key: "Ctrl+B, Shift+N", description: "Create a new workspace" },
-				{ key: "Ctrl+B, W", description: "Open workspace picker" },
-				{ key: "Ctrl+B, E", description: "Edit focused pane scrollback" },
-				{ key: "Ctrl+B, O", description: "Open notification target" },
-				{ key: "Ctrl+B, Shift+G", description: "Create a worktree workspace" },
-				{ key: "Ctrl+B, B", description: "Toggle sidebar" },
-				{ key: "Ctrl+B, Q", description: "Detach; leave session running" },
-				{ key: "Ctrl+B, Shift+R", description: "Reload Herdr configuration" },
-			],
-		},
-	],
-};
 
 export function buildTabs(launcherHelp: LauncherHelpResult): Tab[] {
 	const piEntries = launcherHelp.notice
@@ -205,7 +168,7 @@ export function buildTabs(launcherHelp: LauncherHelpResult): Tab[] {
 		sections.push({ title: "Terminal launchers (Kitty)", keyWidth: 16, entries: launcherHelp.entries });
 	}
 	sections.push({ title: "Commands", keyWidth: 20, entries: COMMANDS });
-	return [{ label: "⌨ Cheat Sheet", sections }, HERDR_TAB, GALLERY_TAB];
+	return [{ label: "⌨ Cheat Sheet", sections }, GALLERY_TAB];
 }
 
 class CheatSheetOverlay implements Focusable {
@@ -289,7 +252,7 @@ class CheatSheetOverlay implements Focusable {
 
 export default function (pi: ExtensionAPI) {
 	pi.registerShortcut("alt+1", {
-		description: "Show cheat sheet overlay (Tab cycles: Herdr, gallery)",
+		description: "Show cheat sheet overlay (Tab cycles: gallery)",
 		handler: async (ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),
@@ -299,7 +262,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("shortcuts", {
-		description: "Show cheat sheet overlay (Tab cycles: Herdr, gallery)",
+		description: "Show cheat sheet overlay (Tab cycles: gallery)",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
 				(tui, theme, _keybindings, done) => new CheatSheetOverlay(tui, theme, buildTabs(loadKittyLauncherHelp()), done),
